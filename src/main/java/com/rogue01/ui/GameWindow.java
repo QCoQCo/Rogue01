@@ -67,6 +67,25 @@ public class GameWindow extends JFrame {
                 g2d.setFont(new Font("Monospaced", Font.PLAIN, 24));
                 g2d.drawString("Press ENTER to Start", 340, 300);
                 g2d.drawString("Q: Quit", 420, 340);
+            } else if (currentGame != null && currentGame.getGameState() == com.rogue01.game.GameState.PLAYING) {
+                // 맵과 플레이어 렌더링
+                g2d.setFont(new Font("Monospaced", Font.PLAIN, TILE_SIZE));
+                com.rogue01.map.Map map = currentGame.getMap();
+                com.rogue01.entity.Player player = currentGame.getPlayer();
+                int offsetX = 40, offsetY = 40;
+                for (int y = 0; y < map.getHeight(); y++) {
+                    for (int x = 0; x < map.getWidth(); x++) {
+                        char symbol = map.getTileSymbol(x, y);
+                        // 플레이어 위치면 플레이어 심볼로 덮어씀
+                        if (player.getX() == x && player.getY() == y) {
+                            g2d.setColor(Color.GREEN);
+                            g2d.drawString(String.valueOf(player.getSymbol()), offsetX + x * TILE_SIZE, offsetY + (y+1) * TILE_SIZE);
+                            g2d.setColor(Color.WHITE);
+                        } else {
+                            g2d.drawString(String.valueOf(symbol), offsetX + x * TILE_SIZE, offsetY + (y+1) * TILE_SIZE);
+                        }
+                    }
+                }
             } else {
                 g2d.setFont(new Font("Monospaced", Font.PLAIN, TILE_SIZE));
                 g2d.drawString("Game Running...", 50, 50);
