@@ -27,7 +27,14 @@ public class Game {
     public void update() {
         switch (gameState) {
             case MENU:
-                // 메뉴 상태 처리 (예: 대기)
+                // ENTER 키가 눌리면 게임 시작
+                if (gameWindow.getInputHandler().isKeyPressed(java.awt.event.KeyEvent.VK_ENTER)) {
+                    setGameState(GameState.PLAYING);
+                    gameWindow.getInputHandler().clearKeys();
+                }
+                else if (gameWindow.getInputHandler().isKeyPressed(java.awt.event.KeyEvent.VK_Q)) {
+                    System.exit(0);
+                }
                 break;
             case PLAYING:
                 player.update();

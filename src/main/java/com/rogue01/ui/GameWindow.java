@@ -9,6 +9,7 @@ import java.awt.*;
 public class GameWindow extends JFrame {
     private GamePanel gamePanel;
     private InputHandler inputHandler;
+    private Game currentGame; // 현재 게임 인스턴스 참조
     
     public GameWindow() {
         setTitle("Rogue01");
@@ -26,6 +27,7 @@ public class GameWindow extends JFrame {
     }
     
     public void render(Game game) {
+        this.currentGame = game; // 현재 게임 인스턴스 저장
         gamePanel.render(game);
         repaint();
     }
@@ -33,6 +35,8 @@ public class GameWindow extends JFrame {
     public InputHandler getInputHandler() {
         return inputHandler;
     }
+    
+    public Game getGame() { return currentGame; }
     
     private class GamePanel extends JPanel {
         private static final int TILE_SIZE = 20;
@@ -56,12 +60,17 @@ public class GameWindow extends JFrame {
         }
         
         private void drawGame(Graphics2D g2d) {
-            // 맵과 엔티티 그리기
             g2d.setColor(Color.WHITE);
-            g2d.setFont(new Font("Monospaced", Font.PLAIN, TILE_SIZE));
-            
-            // 여기에 실제 게임 렌더링 로직 구현
-            g2d.drawString("Rogue01 Game", 50, 50);
+            if (currentGame != null && currentGame.getGameState() == com.rogue01.game.GameState.MENU) {
+                g2d.setFont(new Font("Monospaced", Font.BOLD, 40));
+                g2d.drawString("Rogue01", 350, 180);
+                g2d.setFont(new Font("Monospaced", Font.PLAIN, 24));
+                g2d.drawString("Press ENTER to Start", 340, 300);
+                g2d.drawString("Q: Quit", 420, 340);
+            } else {
+                g2d.setFont(new Font("Monospaced", Font.PLAIN, TILE_SIZE));
+                g2d.drawString("Game Running...", 50, 50);
+            }
         }
     }
 } 
