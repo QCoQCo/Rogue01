@@ -17,6 +17,9 @@ public class Game {
         this.gameWindow = new GameWindow();
         this.map = new Map(50, 30);
         this.player = new Player(25, 15);
+        
+        // 플레이어에게 GameWindow의 InputHandler 설정
+        this.player.setInputHandler(this.gameWindow.getInputHandler());
     }
     
     public void start() {
