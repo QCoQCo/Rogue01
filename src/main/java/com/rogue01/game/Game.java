@@ -40,7 +40,7 @@ public class Game {
                 }
                 break;
             case PLAYING:
-                player.update();
+                player.update(map);
                 map.update();
                 break;
             case PAUSED:
