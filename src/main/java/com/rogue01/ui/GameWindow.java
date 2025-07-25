@@ -62,25 +62,79 @@ public class GameWindow extends JFrame {
         private void drawGame(Graphics2D g2d) {
             g2d.setColor(Color.WHITE);
             if (currentGame != null && currentGame.getGameState() == com.rogue01.game.GameState.MENU) {
-                g2d.setFont(new Font("Monospaced", Font.BOLD, 40));
-                g2d.drawString("Rogue01", 350, 180);
-                g2d.setFont(new Font("Monospaced", Font.PLAIN, 24));
-                g2d.drawString("Press ENTER to Start", 340, 300);
-                g2d.drawString("Q: Quit", 420, 340);
+                // 타이틀
+                g2d.setFont(new Font("Monospaced", Font.BOLD, 48));
+                g2d.setColor(new Color(80, 200, 120));
+                g2d.drawString("Rogue01", 320, 150);
+                // 게임 설명
+                g2d.setColor(Color.LIGHT_GRAY);
+                g2d.setFont(new Font("Monospaced", Font.PLAIN, 16));
+                g2d.drawString("Move: WASD / Arrow Keys", 340, 220);
+                g2d.drawString("Start: ENTER", 340, 245);
+                g2d.drawString("Quit: Q", 340, 270);
+                // 선택 커서(예시: ENTER에 강조)
+                g2d.setColor(Color.YELLOW);
+                g2d.setFont(new Font("Monospaced", Font.BOLD, 24));
+                g2d.drawString("> Press ENTER to Start <", 320, 320);
+                // 제작자 정보
+                g2d.setFont(new Font("Monospaced", Font.PLAIN, 14));
+                g2d.setColor(Color.GRAY);
+                g2d.drawString("Created by SCODA", 370, 380);
+                g2d.setColor(Color.WHITE);
             } else if (currentGame != null && currentGame.getGameState() == com.rogue01.game.GameState.PLAYING) {
                 // HUD 표시
                 g2d.setFont(new Font("Monospaced", Font.BOLD, 18));
                 com.rogue01.entity.Player player = currentGame.getPlayer();
-                g2d.drawString("HP: " + player.getHealth() + "/" + player.getMaxHealth(), 40, 30);
+                
+                // HUD 배경
+                g2d.setColor(new Color(0, 0, 0, 180));
+                g2d.fillRect(0, 0, 1000, 35);
+                g2d.setColor(Color.WHITE);
+                
+                // 플레이어 정보
+                g2d.drawString("HP: " + player.getHealth() + "/" + player.getMaxHealth(), 20, 25);
+                g2d.drawString("Position: (" + player.getX() + ", " + player.getY() + ")", 200, 25);
+                g2d.drawString("Player: " + player.getName(), 400, 25);
+                
+                // 게임 상태
+                // g2d.setColor(Color.YELLOW);
+                // g2d.drawString("Game State: PLAYING", 600, 25);
+                
+                // 조작법 (우측 상단)
+                g2d.setColor(Color.LIGHT_GRAY);
+                g2d.setFont(new Font("Monospaced", Font.PLAIN, 12));
+                g2d.drawString("Controls:", 800, 15);
+                g2d.drawString("WASD / Arrow Keys: Move", 800, 30);
+                
                 // 맵과 플레이어 렌더링
                 g2d.setFont(new Font("Monospaced", Font.PLAIN, TILE_SIZE));
                 com.rogue01.map.Map map = currentGame.getMap();
-                int offsetX = 40, offsetY = 40;
-                for (int y = 0; y < map.getHeight(); y++) {
-                    for (int x = 0; x < map.getWidth(); x++) {
-                        char symbol = map.getTileSymbol(x, y);
+                
+                // 카메라 시스템: 플레이어를 화면 중앙에 고정
+                int screenWidth = 1000;
+                int screenHeight = 600;
+                int visibleTilesX = (screenWidth - 80) / TILE_SIZE; // 좌우 여백 제외
+                int visibleTilesY = (screenHeight - 120) / TILE_SIZE; // 상하 여백 제외
+                
+                // 플레이어 위치를 기준으로 카메라 위치 계산
+                int cameraX = player.getX() - visibleTilesX / 2;
+                int cameraY = player.getY() - visibleTilesY / 2;
+                
+                // 카메라가 맵 경계를 벗어나지 않도록 제한
+                cameraX = Math.max(0, Math.min(cameraX, map.getWidth() - visibleTilesX));
+                cameraY = Math.max(0, Math.min(cameraY, map.getHeight() - visibleTilesY));
+                
+                int offsetX = 40, offsetY = 60; // HUD 아래로 맵 위치 조정
+                
+                // 화면에 보이는 맵 영역만 렌더링
+                for (int y = 0; y < visibleTilesY && y + cameraY < map.getHeight(); y++) {
+                    for (int x = 0; x < visibleTilesX && x + cameraX < map.getWidth(); x++) {
+                        int mapX = x + cameraX;
+                        int mapY = y + cameraY;
+                        char symbol = map.getTileSymbol(mapX, mapY);
+                        
                         // 플레이어 위치면 플레이어 심볼로 덮어씀
-                        if (player.getX() == x && player.getY() == y) {
+                        if (player.getX() == mapX && player.getY() == mapY) {
                             g2d.setColor(Color.GREEN);
                             g2d.drawString(String.valueOf(player.getSymbol()), offsetX + x * TILE_SIZE, offsetY + (y+1) * TILE_SIZE);
                             g2d.setColor(Color.WHITE);
@@ -89,6 +143,15 @@ public class GameWindow extends JFrame {
                         }
                     }
                 }
+                
+                // 하단 정보 패널
+                g2d.setColor(new Color(0, 0, 0, 180));
+                g2d.fillRect(0, 565, 1000, 35);
+                g2d.setColor(Color.WHITE);
+                g2d.setFont(new Font("Monospaced", Font.PLAIN, 14));
+                g2d.drawString("ESC: Pause | Q: Quit | R: Restart", 20, 585);
+                g2d.drawString("Map Size: " + map.getWidth() + "x" + map.getHeight(), 400, 585);
+                g2d.drawString("FPS: 60", 600, 585);//랜더링 속도 계산
             } else {
                 g2d.setFont(new Font("Monospaced", Font.PLAIN, TILE_SIZE));
                 g2d.drawString("Game Running...", 50, 50);
