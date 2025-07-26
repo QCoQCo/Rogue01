@@ -7,8 +7,8 @@ import com.rogue01.map.Map;
 public class Player extends Entity {
     private InputHandler inputHandler;
     
-    public Player(int x, int y) {
-        super(x, y, '@', "Player");
+    public Player(int x, int y) {//† ß å ∂ ≈ ç √ ∫ å œ ∑
+        super(x, y, '†', "Player");
         this.inputHandler = new InputHandler();
     }
     

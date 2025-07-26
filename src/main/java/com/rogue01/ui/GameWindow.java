@@ -152,9 +152,27 @@ public class GameWindow extends JFrame {
                 g2d.drawString("ESC: Pause | Q: Quit | R: Restart", 20, 585);
                 g2d.drawString("Map Size: " + map.getWidth() + "x" + map.getHeight(), 400, 585);
                 g2d.drawString("FPS: 60", 600, 585);//랜더링 속도 계산
-            } else {
-                g2d.setFont(new Font("Monospaced", Font.PLAIN, TILE_SIZE));
-                g2d.drawString("Game Running...", 50, 50);
+            } else if (currentGame != null && currentGame.getGameState() == com.rogue01.game.GameState.PAUSED) {
+                // 일시정지 메뉴
+                // 반투명 오버레이
+                g2d.setColor(new Color(0, 0, 0, 150));
+                g2d.fillRect(0, 0, 1000, 600);
+                
+                // 일시정지 메뉴
+                g2d.setColor(Color.WHITE);
+                g2d.setFont(new Font("Monospaced", Font.BOLD, 36));
+                g2d.drawString("GAME PAUSED", 350, 200);
+                
+                g2d.setFont(new Font("Monospaced", Font.PLAIN, 20));
+                g2d.drawString("ESC: Resume Game", 380, 250);
+                g2d.drawString("Q: Quit Game", 380, 280);
+                
+                // 현재 게임 상태 정보
+                g2d.setFont(new Font("Monospaced", Font.PLAIN, 16));
+                g2d.setColor(Color.LIGHT_GRAY);
+                com.rogue01.entity.Player player = currentGame.getPlayer();
+                g2d.drawString("Player HP: " + player.getHealth() + "/" + player.getMaxHealth(), 380, 320);
+                g2d.drawString("Position: (" + player.getX() + ", " + player.getY() + ")", 380, 340);
             }
         }
     }
