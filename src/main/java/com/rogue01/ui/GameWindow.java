@@ -14,7 +14,7 @@ public class GameWindow extends JFrame {
     public GameWindow() {
         setTitle("Rogue01");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setResizable(false);
+        setResizable(true);
         
         this.inputHandler = new InputHandler();
         this.gamePanel = new GamePanel();
@@ -42,7 +42,7 @@ public class GameWindow extends JFrame {
         private static final int TILE_SIZE = 20;
         
         public GamePanel() {
-            setPreferredSize(new Dimension(1000, 600));
+            setPreferredSize(new Dimension(1400, 900));
             setBackground(Color.BLACK);
         }
         
@@ -65,21 +65,21 @@ public class GameWindow extends JFrame {
                 // 타이틀
                 g2d.setFont(new Font("Monospaced", Font.BOLD, 48));
                 g2d.setColor(new Color(80, 200, 120));
-                g2d.drawString("Rogue01", 320, 150);
+                g2d.drawString("Rogue01", getWidth()/2 - 120, getHeight()/2 - 100);
                 // 게임 설명
                 g2d.setColor(Color.LIGHT_GRAY);
                 g2d.setFont(new Font("Monospaced", Font.PLAIN, 16));
-                g2d.drawString("Move: WASD / Arrow Keys", 340, 220);
-                g2d.drawString("Start: ENTER", 340, 245);
-                g2d.drawString("Quit: Q", 340, 270);
+                g2d.drawString("Move: WASD / Arrow Keys", getWidth()/2 - 100, getHeight()/2 - 30);
+                g2d.drawString("Start: ENTER", getWidth()/2 - 100, getHeight()/2 - 5);
+                g2d.drawString("Quit: Q", getWidth()/2 - 100, getHeight()/2 + 20);
                 // 선택 커서(예시: ENTER에 강조)
                 g2d.setColor(Color.YELLOW);
                 g2d.setFont(new Font("Monospaced", Font.BOLD, 24));
-                g2d.drawString("> Press ENTER to Start <", 320, 320);
+                g2d.drawString("> Press ENTER to Start <", getWidth()/2 - 150, getHeight()/2 + 70);
                 // 제작자 정보
                 g2d.setFont(new Font("Monospaced", Font.PLAIN, 14));
                 g2d.setColor(Color.GRAY);
-                g2d.drawString("Created by SCODA", 370, 380);
+                g2d.drawString("Created by SCODA", getWidth()/2 - 80, getHeight()/2 + 130);
                 g2d.setColor(Color.WHITE);
             } else if (currentGame != null && currentGame.getGameState() == com.rogue01.game.GameState.PLAYING) {
                 // HUD 표시
@@ -88,7 +88,7 @@ public class GameWindow extends JFrame {
                 
                 // HUD 배경
                 g2d.setColor(new Color(0, 0, 0, 180));
-                g2d.fillRect(0, 0, 1000, 35);
+                g2d.fillRect(0, 0, getWidth(), 35);
                 g2d.setColor(Color.WHITE);
                 
                 // 플레이어 정보
@@ -103,16 +103,16 @@ public class GameWindow extends JFrame {
                 // 조작법 (우측 상단)
                 g2d.setColor(Color.LIGHT_GRAY);
                 g2d.setFont(new Font("Monospaced", Font.PLAIN, 12));
-                g2d.drawString("Controls:", 800, 15);
-                g2d.drawString("WASD / Arrow Keys: Move", 800, 30);
+                g2d.drawString("Controls:", getWidth() - 200, 15);
+                g2d.drawString("WASD / Arrow Keys: Move", getWidth() - 200, 30);
                 
                 // 맵과 플레이어 렌더링
                 g2d.setFont(new Font("Monospaced", Font.PLAIN, TILE_SIZE));
                 com.rogue01.map.Map map = currentGame.getMap();
                 
                 // 카메라 시스템: 플레이어를 화면 중앙에 고정
-                int screenWidth = 1000;
-                int screenHeight = 600;
+                int screenWidth = getWidth();
+                int screenHeight = getHeight();
                 int visibleTilesX = (screenWidth - 80) / TILE_SIZE; // 좌우 여백 제외
                 int visibleTilesY = (screenHeight - 120) / TILE_SIZE; // 상하 여백 제외
                 
@@ -146,33 +146,33 @@ public class GameWindow extends JFrame {
                 
                 // 하단 정보 패널
                 g2d.setColor(new Color(0, 0, 0, 180));
-                g2d.fillRect(0, 565, 1000, 35);
+                g2d.fillRect(0, getHeight() - 35, getWidth(), 35);
                 g2d.setColor(Color.WHITE);
                 g2d.setFont(new Font("Monospaced", Font.PLAIN, 14));
-                g2d.drawString("ESC: Pause | Q: Quit | R: Restart", 20, 585);
-                g2d.drawString("Map Size: " + map.getWidth() + "x" + map.getHeight(), 400, 585);
-                g2d.drawString("FPS: 60", 600, 585);//랜더링 속도 계산
+                g2d.drawString("ESC: Pause | Q: Quit | R: Restart", 20, getHeight() - 15);
+                g2d.drawString("Map Size: " + map.getWidth() + "x" + map.getHeight(), 400, getHeight() - 15);
+                g2d.drawString("FPS: 60", 600, getHeight() - 15);//랜더링 속도 계산
             } else if (currentGame != null && currentGame.getGameState() == com.rogue01.game.GameState.PAUSED) {
                 // 일시정지 메뉴
                 // 반투명 오버레이
                 g2d.setColor(new Color(0, 0, 0, 150));
-                g2d.fillRect(0, 0, 1000, 600);
+                g2d.fillRect(0, 0, getWidth(), getHeight());
                 
                 // 일시정지 메뉴
                 g2d.setColor(Color.WHITE);
                 g2d.setFont(new Font("Monospaced", Font.BOLD, 36));
-                g2d.drawString("GAME PAUSED", 350, 200);
+                g2d.drawString("GAME PAUSED", getWidth()/2 - 120, getHeight()/2 - 50);
                 
                 g2d.setFont(new Font("Monospaced", Font.PLAIN, 20));
-                g2d.drawString("ESC: Resume Game", 380, 250);
-                g2d.drawString("Q: Quit Game", 380, 280);
+                g2d.drawString("ESC: Resume Game", getWidth()/2 - 100, getHeight()/2);
+                g2d.drawString("Q: Quit Game", getWidth()/2 - 100, getHeight()/2 + 30);
                 
                 // 현재 게임 상태 정보
                 g2d.setFont(new Font("Monospaced", Font.PLAIN, 16));
                 g2d.setColor(Color.LIGHT_GRAY);
                 com.rogue01.entity.Player player = currentGame.getPlayer();
-                g2d.drawString("Player HP: " + player.getHealth() + "/" + player.getMaxHealth(), 380, 320);
-                g2d.drawString("Position: (" + player.getX() + ", " + player.getY() + ")", 380, 340);
+                g2d.drawString("Player HP: " + player.getHealth() + "/" + player.getMaxHealth(), getWidth()/2 - 100, getHeight()/2 + 70);
+                g2d.drawString("Position: (" + player.getX() + ", " + player.getY() + ")", getWidth()/2 - 100, getHeight()/2 + 90);
             }
         }
     }

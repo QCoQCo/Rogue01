@@ -15,8 +15,8 @@ public class Game {
         this.gameState = GameState.MENU;
         this.gameLoop = new GameLoop();
         this.gameWindow = new GameWindow();
-        this.map = new Map(50, 30);
-        this.player = new Player(25, 15);
+        this.map = new Map(750, 450);
+        this.player = new Player(375, 225);
         
         // 플레이어에게 GameWindow의 InputHandler 설정
         this.player.setInputHandler(this.gameWindow.getInputHandler());
