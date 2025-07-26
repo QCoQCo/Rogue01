@@ -1,5 +1,7 @@
 package com.rogue01.entity;
 
+import com.rogue01.map.Map;
+
 public abstract class Entity {
     protected int x, y;
     protected char symbol;
@@ -16,7 +18,10 @@ public abstract class Entity {
         this.maxHealth = 100;
     }
     
-    public abstract void update();
+    public void update() {
+        // 기본 구현 (아무것도 안 함)
+    }
+    public abstract void update(Map map);
     
     public void takeDamage(int damage) {
         health -= damage;

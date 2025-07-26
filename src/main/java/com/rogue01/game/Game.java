@@ -40,11 +40,24 @@ public class Game {
                 }
                 break;
             case PLAYING:
-                player.update();
+                // ESC 키가 눌리면 일시정지
+                if (gameWindow.getInputHandler().isKeyPressed(java.awt.event.KeyEvent.VK_ESCAPE)) {
+                    setGameState(GameState.PAUSED);
+                    gameWindow.getInputHandler().clearKeys();
+                }
+                player.update(map);
                 map.update();
                 break;
             case PAUSED:
-                // 게임 일시정지 상태
+                // ESC 키가 눌리면 게임 재개
+                if (gameWindow.getInputHandler().isKeyPressed(java.awt.event.KeyEvent.VK_ESCAPE)) {
+                    setGameState(GameState.PLAYING);
+                    gameWindow.getInputHandler().clearKeys();
+                }
+                // Q 키가 눌리면 게임 종료
+                else if (gameWindow.getInputHandler().isKeyPressed(java.awt.event.KeyEvent.VK_Q)) {
+                    System.exit(0);
+                }
                 break;
             case GAME_OVER:
                 // 게임 오버 상태
