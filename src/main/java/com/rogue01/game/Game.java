@@ -54,6 +54,11 @@ public class Game {
                     setGameState(GameState.INVENTORY);
                     gameWindow.getInputHandler().clearKeys();
                 }
+                // M 키가 눌리면 맵 뷰
+                else if (gameWindow.getInputHandler().isKeyPressed(java.awt.event.KeyEvent.VK_M)) {
+                    setGameState(GameState.MAP_VIEW);
+                    gameWindow.getInputHandler().clearKeys();
+                }
                 player.update(map);
                 map.update();
                 break;
@@ -106,6 +111,18 @@ public class Game {
                 }
                 else if (gameWindow.getInputHandler().isKeyPressed(java.awt.event.KeyEvent.VK_7)) {
                     handleInventorySelection(6);
+                    gameWindow.getInputHandler().clearKeys();
+                }
+                break;
+            case MAP_VIEW:
+                // M 키가 눌리면 게임으로 돌아가기
+                if (gameWindow.getInputHandler().isKeyPressed(java.awt.event.KeyEvent.VK_M)) {
+                    setGameState(GameState.PLAYING);
+                    gameWindow.getInputHandler().clearKeys();
+                }
+                // ESC 키가 눌리면 게임으로 돌아가기
+                else if (gameWindow.getInputHandler().isKeyPressed(java.awt.event.KeyEvent.VK_ESCAPE)) {
+                    setGameState(GameState.PLAYING);
                     gameWindow.getInputHandler().clearKeys();
                 }
                 break;

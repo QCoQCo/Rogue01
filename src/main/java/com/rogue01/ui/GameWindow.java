@@ -193,6 +193,7 @@ public class GameWindow extends JFrame {
                 g2d.setFont(new Font("Monospaced", Font.PLAIN, 12));
                 g2d.drawString("Controls:", getWidth() - 200, 15);
                 g2d.drawString("WASD / Arrow Keys: Move", getWidth() - 200, 30);
+                g2d.drawString("I: Inventory | M: Map", getWidth() - 200, 45);
                 
                 // 맵과 플레이어 렌더링
                 g2d.setFont(new Font("Monospaced", Font.PLAIN, TILE_SIZE));
@@ -264,6 +265,9 @@ public class GameWindow extends JFrame {
             } else if (currentGame != null && currentGame.getGameState() == com.rogue01.game.GameState.INVENTORY) {
                 // 인벤토리 창
                 drawInventory(g2d);
+            } else if (currentGame != null && currentGame.getGameState() == com.rogue01.game.GameState.MAP_VIEW) {
+                // 맵 뷰
+                drawMapView(g2d);
             }
         }
         
@@ -400,6 +404,107 @@ public class GameWindow extends JFrame {
                     g2d.drawString(item.getType().getKoreanName(), x, y + slotSize + 12);
                 }
             }
+        }
+        
+        private void drawMapView(Graphics2D g2d) {
+            // 배경
+            g2d.setColor(new Color(0, 0, 0, 200));
+            g2d.fillRect(0, 0, getWidth(), getHeight());
+            
+            // 제목
+            g2d.setColor(Color.WHITE);
+            g2d.setFont(new Font("Monospaced", Font.BOLD, 24));
+            g2d.drawString("WORLD MAP", getWidth()/2 - 80, 50);
+            
+            // 전체 맵 그리기
+            drawFullMap(g2d);
+            
+            // 플레이어 정보
+            drawPlayerInfo(g2d);
+            
+            // 조작법
+            g2d.setColor(Color.LIGHT_GRAY);
+            g2d.setFont(new Font("Monospaced", Font.PLAIN, 14));
+            g2d.drawString("M/ESC: Close Map", getWidth()/2 - 80, getHeight() - 30);
+        }
+        
+        private void drawFullMap(Graphics2D g2d) {
+            com.rogue01.map.Map map = currentGame.getMap();
+            com.rogue01.entity.Player player = currentGame.getPlayer();
+            
+            int mapWidth = map.getWidth();
+            int mapHeight = map.getHeight();
+            
+            // 간략한 맵을 위해 샘플링 간격 설정 (성능 최적화)
+            int sampleInterval = Math.max(5, Math.min(mapWidth, mapHeight) / 50);
+            
+            // 맵을 화면에 맞게 스케일링 (더 큰 스케일로 간략화)
+            int maxMapWidth = getWidth() - 100;
+            int maxMapHeight = getHeight() - 200;
+            
+            double scaleX = (double) maxMapWidth / (mapWidth / sampleInterval);
+            double scaleY = (double) maxMapHeight / (mapHeight / sampleInterval);
+            double scale = Math.min(scaleX, scaleY);
+            
+            int scaledMapWidth = (int) ((mapWidth / sampleInterval) * scale);
+            int scaledMapHeight = (int) ((mapHeight / sampleInterval) * scale);
+            
+            // 맵을 화면 중앙에 배치
+            int mapStartX = (getWidth() - scaledMapWidth) / 2;
+            int mapStartY = 100;
+            
+            // 맵 배경
+            g2d.setColor(Color.DARK_GRAY);
+            g2d.fillRect(mapStartX - 10, mapStartY - 10, scaledMapWidth + 20, scaledMapHeight + 20);
+            
+            // 간략한 맵 그리기 (샘플링된 타일만)
+            for (int y = 0; y < mapHeight; y += sampleInterval) {
+                for (int x = 0; x < mapWidth; x += sampleInterval) {
+                    char symbol = map.getTileSymbol(x, y);
+                    int pixelX = mapStartX + (int)((x / sampleInterval) * scale);
+                    int pixelY = mapStartY + (int)((y / sampleInterval) * scale);
+                    int tileSize = (int)(scale * 2); // 더 큰 타일 크기
+                    
+                    // 플레이어 위치면 플레이어 표시
+                    if (Math.abs(player.getX() - x) < sampleInterval && Math.abs(player.getY() - y) < sampleInterval) {
+                        g2d.setColor(Color.GREEN);
+                        g2d.fillRect(pixelX, pixelY, tileSize, tileSize);
+                        g2d.setColor(Color.WHITE);
+                        g2d.setFont(new Font("Monospaced", Font.BOLD, tileSize / 2));
+                        g2d.drawString("@", pixelX + tileSize/4, pixelY + tileSize*3/4);
+                    } else {
+                        // 타일 타입에 따른 색상 (간략화)
+                        if (symbol == '#') {
+                            g2d.setColor(Color.GRAY); // 벽
+                        } else if (symbol == '.') {
+                            g2d.setColor(Color.DARK_GRAY); // 바닥
+                        } else {
+                            g2d.setColor(Color.WHITE); // 기타
+                        }
+                        g2d.fillRect(pixelX, pixelY, tileSize, tileSize);
+                    }
+                }
+            }
+            
+            // 플레이어 위치 강조 (더 큰 원으로 표시)
+            int playerPixelX = mapStartX + (int)((player.getX() / sampleInterval) * scale);
+            int playerPixelY = mapStartY + (int)((player.getY() / sampleInterval) * scale);
+            int tileSize = (int)(scale * 2);
+            g2d.setColor(Color.RED);
+            g2d.setStroke(new java.awt.BasicStroke(3));
+            g2d.drawOval(playerPixelX - 3, playerPixelY - 3, tileSize + 6, tileSize + 6);
+        }
+        
+        private void drawPlayerInfo(Graphics2D g2d) {
+            com.rogue01.entity.Player player = currentGame.getPlayer();
+            
+            // 간략한 플레이어 정보 패널
+            g2d.setColor(new Color(0, 0, 0, 180));
+            g2d.fillRect(20, getHeight() - 80, 250, 60);
+            g2d.setColor(Color.WHITE);
+            g2d.setFont(new Font("Monospaced", Font.BOLD, 14));
+            g2d.drawString("Player: (" + player.getX() + ", " + player.getY() + ") | HP: " + player.getHealth(), 30, getHeight() - 60);
+            g2d.drawString("Map: " + currentGame.getMap().getWidth() + "x" + currentGame.getMap().getHeight() + " | Scale: 1:" + Math.max(5, Math.min(currentGame.getMap().getWidth(), currentGame.getMap().getHeight()) / 50), 30, getHeight() - 40);
         }
     }
 } 
