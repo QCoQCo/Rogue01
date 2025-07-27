@@ -1,15 +1,18 @@
 package com.rogue01.entity;
 
 import com.rogue01.util.InputHandler;
+import com.rogue01.item.Inventory;
 import java.awt.event.KeyEvent;
 import com.rogue01.map.Map;
 
 public class Player extends Entity {
     private InputHandler inputHandler;
+    private Inventory inventory;
     
     public Player(int x, int y) {//† ß å ∂ ≈ ç √ ∫ å œ ∑
-        super(x, y, '†', "Player");
+        super(x, y, '@', "Player");
         this.inputHandler = new InputHandler();
+        this.inventory = new Inventory();
     }
     
     @Override
@@ -51,5 +54,9 @@ public class Player extends Entity {
     
     public void setInputHandler(InputHandler inputHandler) {
         this.inputHandler = inputHandler;
+    }
+    
+    public Inventory getInventory() {
+        return inventory;
     }
 } 

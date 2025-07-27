@@ -22,31 +22,23 @@ public class Room {
         this(x, y, width, height, RoomType.CENTRAL);
     }
     
-    /**
-     * 다른 방과 겹치는지 확인
-     */
+    // 다른 방과 겹치는지 확인
     public boolean intersects(Room other) {
         return (x <= other.x + other.width && x + width >= other.x &&
                 y <= other.y + other.height && y + height >= other.y);
     }
     
-    /**
-     * 방의 중앙점 X 좌표 반환
-     */
+    // 방의 중앙점 X 좌표 반환
     public int getCenterX() {
         return x + width / 2;
     }
     
-    /**
-     * 방의 중앙점 Y 좌표 반환
-     */
+    // 방의 중앙점 Y 좌표 반환
     public int getCenterY() {
         return y + height / 2;
     }
     
-    /**
-     * 방의 면적 반환
-     */
+    // 방의 면적 반환
     public int getArea() {
         return width * height;
     }
