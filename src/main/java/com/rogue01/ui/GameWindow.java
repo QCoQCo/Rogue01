@@ -222,11 +222,19 @@ public class GameWindow extends JFrame {
                         int mapY = y + cameraY;
                         char symbol = map.getTileSymbol(mapX, mapY);
                         
+                        // 타일 타입에 따른 색상 설정
+                        if (symbol == '#') {
+                            g2d.setColor(Color.GRAY); // 벽
+                        } else if (symbol == '.') {
+                            g2d.setColor(Color.DARK_GRAY); // 바닥
+                        } else {
+                            g2d.setColor(Color.WHITE); // 기타
+                        }
+                        
                         // 플레이어 위치면 플레이어 심볼로 덮어씀
                         if (player.getX() == mapX && player.getY() == mapY) {
                             g2d.setColor(Color.GREEN);
                             g2d.drawString(String.valueOf(player.getSymbol()), offsetX + x * TILE_SIZE, offsetY + (y+1) * TILE_SIZE);
-                            g2d.setColor(Color.WHITE);
                         } else {
                             g2d.drawString(String.valueOf(symbol), offsetX + x * TILE_SIZE, offsetY + (y+1) * TILE_SIZE);
                         }
