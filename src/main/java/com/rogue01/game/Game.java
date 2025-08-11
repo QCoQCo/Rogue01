@@ -29,6 +29,9 @@ public class Game {
         // InputManager 초기화
         this.inputManager = new InputManager(this.gameWindow.getInputHandler(), this.player);
         
+        // InputManager에 Game 인스턴스 설정
+        this.inputManager.setGame(this);
+        
         // 테스트 아이템 추가
         addTestItems();
     }
@@ -72,9 +75,8 @@ public class Game {
      * 메뉴 상태 처리
      */
     private void handleMenuState() {
-        if (gameWindow.getInputHandler().isKeyPressed(java.awt.event.KeyEvent.VK_ENTER)) {
-            setGameState(GameState.PLAYING);
-        }
+        // ENTER키 처리는 InputManager에서 담당
+        // 여기서는 메뉴 상태에서 필요한 추가 로직만 처리
     }
     
     /**

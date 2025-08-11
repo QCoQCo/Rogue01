@@ -10,10 +10,18 @@ import java.awt.event.KeyEvent;
 public class InputManager {
     private InputHandler inputHandler;
     private Player player;
+    private Game game; // Game 인스턴스 참조 추가
     
     public InputManager(InputHandler inputHandler, Player player) {
         this.inputHandler = inputHandler;
         this.player = player;
+    }
+    
+    /**
+     * Game 인스턴스 설정
+     */
+    public void setGame(Game game) {
+        this.game = game;
     }
     
     /**
@@ -47,7 +55,10 @@ public class InputManager {
      */
     private void handleMenuInput() {
         if (inputHandler.isKeyPressed(KeyEvent.VK_ENTER)) {
-            // 게임 시작 신호
+            // 게임 시작 신호 - 게임 상태를 PLAYING으로 변경
+            if (game != null) {
+                game.setGameState(GameState.PLAYING);
+            }
             inputHandler.clearKeys();
         } else if (inputHandler.isKeyPressed(KeyEvent.VK_Q)) {
             System.exit(0);
@@ -60,12 +71,21 @@ public class InputManager {
     private void handlePlayingInput() {
         if (inputHandler.isKeyPressed(KeyEvent.VK_ESCAPE)) {
             // 일시정지 신호
+            if (game != null) {
+                game.setGameState(GameState.PAUSED);
+            }
             inputHandler.clearKeys();
         } else if (inputHandler.isKeyPressed(KeyEvent.VK_I)) {
             // 인벤토리 창 신호
+            if (game != null) {
+                game.setGameState(GameState.INVENTORY);
+            }
             inputHandler.clearKeys();
         } else if (inputHandler.isKeyPressed(KeyEvent.VK_M)) {
             // 맵 뷰 신호
+            if (game != null) {
+                game.setGameState(GameState.MAP_VIEW);
+            }
             inputHandler.clearKeys();
         }
         
@@ -79,6 +99,9 @@ public class InputManager {
     private void handlePausedInput() {
         if (inputHandler.isKeyPressed(KeyEvent.VK_ESCAPE)) {
             // 게임 재개 신호
+            if (game != null) {
+                game.setGameState(GameState.PLAYING);
+            }
             inputHandler.clearKeys();
         } else if (inputHandler.isKeyPressed(KeyEvent.VK_Q)) {
             System.exit(0);
@@ -92,6 +115,9 @@ public class InputManager {
         if (inputHandler.isKeyPressed(KeyEvent.VK_I) || 
             inputHandler.isKeyPressed(KeyEvent.VK_ESCAPE)) {
             // 게임으로 돌아가기 신호
+            if (game != null) {
+                game.setGameState(GameState.PLAYING);
+            }
             inputHandler.clearKeys();
         } else {
             // 숫자 키로 인벤토리 아이템 선택
@@ -106,6 +132,9 @@ public class InputManager {
         if (inputHandler.isKeyPressed(KeyEvent.VK_M) || 
             inputHandler.isKeyPressed(KeyEvent.VK_ESCAPE)) {
             // 게임으로 돌아가기 신호
+            if (game != null) {
+                game.setGameState(GameState.PLAYING);
+            }
             inputHandler.clearKeys();
         }
     }
@@ -117,6 +146,9 @@ public class InputManager {
         // 게임 오버 상태에서의 입력 처리
         if (inputHandler.isKeyPressed(KeyEvent.VK_ENTER)) {
             // 게임 재시작 신호
+            if (game != null) {
+                game.setGameState(GameState.PLAYING);
+            }
             inputHandler.clearKeys();
         } else if (inputHandler.isKeyPressed(KeyEvent.VK_Q)) {
             System.exit(0);
