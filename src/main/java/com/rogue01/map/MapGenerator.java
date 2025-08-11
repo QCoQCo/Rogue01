@@ -1,5 +1,8 @@
 package com.rogue01.map;
 
+import com.rogue01.map.structures.Room;
+import java.util.List;
+
 public interface MapGenerator {
     /**
      * 맵을 생성합니다.
@@ -20,4 +23,10 @@ public interface MapGenerator {
      * @return 맵 생성 정보
      */
     MapGenerationInfo getGenerationInfo();
+    
+    /**
+     * 생성된 맵의 방 목록을 반환합니다.
+     * @return 방 목록
+     */
+    List<Room> getRooms();
 } 

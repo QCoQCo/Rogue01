@@ -182,7 +182,6 @@ public class HybridGenerator implements MapGenerator {
     @Override
     public void setSeed(long seed) {
         this.seed = seed;
-        RandomUtils.setSeed(seed);
         roomGenerator.setSeed(seed);
         cellularGenerator.setSeed(seed + 1);
         bspGenerator.setSeed(seed + 2);

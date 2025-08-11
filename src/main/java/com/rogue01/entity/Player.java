@@ -9,7 +9,28 @@ public class Player extends Entity {
     private InputHandler inputHandler;
     private Inventory inventory;
     
-    public Player(int x, int y) {//† ß å ∂ ≈ ç √ ∫ å œ ∑
+    // 이동 방향을 정의하는 enum
+    private enum Direction {
+        UP(0, -1), DOWN(0, 1), LEFT(-1, 0), RIGHT(1, 0);
+        
+        private final int dx, dy;
+        
+        Direction(int dx, int dy) {
+            this.dx = dx;
+            this.dy = dy;
+        }
+        
+        public int getDx() { return dx; }
+        public int getDy() { return dy; }
+    }
+    
+    // 키 매핑을 위한 배열 (더 간단한 접근)
+    private final int[] upKeys = {KeyEvent.VK_W, KeyEvent.VK_UP};
+    private final int[] downKeys = {KeyEvent.VK_S, KeyEvent.VK_DOWN};
+    private final int[] leftKeys = {KeyEvent.VK_A, KeyEvent.VK_LEFT};
+    private final int[] rightKeys = {KeyEvent.VK_D, KeyEvent.VK_RIGHT};
+    
+    public Player(int x, int y) {
         super(x, y, '@', "Player");
         this.inputHandler = new InputHandler();
         this.inventory = new Inventory();
@@ -17,38 +38,48 @@ public class Player extends Entity {
     
     @Override
     public void update(Map map) {
-        // 입력 처리 및 이동 로직 (keyCode 기반, 한 번만 이동)
-        if (inputHandler.isKeyPressed(KeyEvent.VK_W)) {
-            if (map.isWalkable(x, y - 1)) y--;
-            inputHandler.consumeKey(KeyEvent.VK_W);
+        // 위쪽 이동
+        if (isAnyKeyPressed(upKeys)) {
+            if (map.isWalkable(x, y - 1)) {
+                y--;
+            }
+            consumeKeys(upKeys);
         }
-        if (inputHandler.isKeyPressed(KeyEvent.VK_UP)) {
-            if (map.isWalkable(x, y - 1)) y--;
-            inputHandler.consumeKey(KeyEvent.VK_UP);
+        // 아래쪽 이동
+        else if (isAnyKeyPressed(downKeys)) {
+            if (map.isWalkable(x, y + 1)) {
+                y++;
+            }
+            consumeKeys(downKeys);
         }
-        if (inputHandler.isKeyPressed(KeyEvent.VK_S)) {
-            if (map.isWalkable(x, y + 1)) y++;
-            inputHandler.consumeKey(KeyEvent.VK_S);
+        // 왼쪽 이동
+        else if (isAnyKeyPressed(leftKeys)) {
+            if (map.isWalkable(x - 1, y)) {
+                x--;
+            }
+            consumeKeys(leftKeys);
         }
-        if (inputHandler.isKeyPressed(KeyEvent.VK_DOWN)) {
-            if (map.isWalkable(x, y + 1)) y++;
-            inputHandler.consumeKey(KeyEvent.VK_DOWN);
+        // 오른쪽 이동
+        else if (isAnyKeyPressed(rightKeys)) {
+            if (map.isWalkable(x + 1, y)) {
+                x++;
+            }
+            consumeKeys(rightKeys);
         }
-        if (inputHandler.isKeyPressed(KeyEvent.VK_A)) {
-            if (map.isWalkable(x - 1, y)) x--;
-            inputHandler.consumeKey(KeyEvent.VK_A);
+    }
+    
+    private boolean isAnyKeyPressed(int[] keys) {
+        for (int key : keys) {
+            if (inputHandler.isKeyPressed(key)) {
+                return true;
+            }
         }
-        if (inputHandler.isKeyPressed(KeyEvent.VK_LEFT)) {
-            if (map.isWalkable(x - 1, y)) x--;
-            inputHandler.consumeKey(KeyEvent.VK_LEFT);
-        }
-        if (inputHandler.isKeyPressed(KeyEvent.VK_D)) {
-            if (map.isWalkable(x + 1, y)) x++;
-            inputHandler.consumeKey(KeyEvent.VK_D);
-        }
-        if (inputHandler.isKeyPressed(KeyEvent.VK_RIGHT)) {
-            if (map.isWalkable(x + 1, y)) x++;
-            inputHandler.consumeKey(KeyEvent.VK_RIGHT);
+        return false;
+    }
+    
+    private void consumeKeys(int[] keys) {
+        for (int key : keys) {
+            inputHandler.consumeKey(key);
         }
     }
     
@@ -59,4 +90,4 @@ public class Player extends Entity {
     public Inventory getInventory() {
         return inventory;
     }
-} 
+}
