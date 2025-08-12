@@ -150,20 +150,30 @@ public class CellularGenerator implements MapGenerator {
         }
     }
     
-    private void floodFill(Tile[][] tiles, boolean[][] visited, int x, int y, List<int[]> roomTiles) {
-        if (x < 0 || x >= tiles.length || y < 0 || y >= tiles[0].length || 
-            visited[x][y] || !tiles[x][y].isWalkable()) {
-            return;
+    private void floodFill(Tile[][] tiles, boolean[][] visited, int startX, int startY, List<int[]> roomTiles) {
+        // 스택 오버플로우 방지를 위해 반복문 사용
+        java.util.Stack<int[]> stack = new java.util.Stack<>();
+        stack.push(new int[]{startX, startY});
+        
+        while (!stack.isEmpty()) {
+            int[] current = stack.pop();
+            int x = current[0];
+            int y = current[1];
+            
+            if (x < 0 || x >= tiles.length || y < 0 || y >= tiles[0].length || 
+                visited[x][y] || !tiles[x][y].isWalkable()) {
+                continue;
+            }
+            
+            visited[x][y] = true;
+            roomTiles.add(new int[]{x, y});
+            
+            // 4방향으로 확장
+            stack.push(new int[]{x + 1, y});
+            stack.push(new int[]{x - 1, y});
+            stack.push(new int[]{x, y + 1});
+            stack.push(new int[]{x, y - 1});
         }
-        
-        visited[x][y] = true;
-        roomTiles.add(new int[]{x, y});
-        
-        // 4방향으로 확장
-        floodFill(tiles, visited, x + 1, y, roomTiles);
-        floodFill(tiles, visited, x - 1, y, roomTiles);
-        floodFill(tiles, visited, x, y + 1, roomTiles);
-        floodFill(tiles, visited, x, y - 1, roomTiles);
     }
     
     private void createRoomFromTiles(List<int[]> roomTiles) {

@@ -89,8 +89,7 @@ public class InputManager {
             inputHandler.clearKeys();
         }
         
-        // 플레이어 이동은 Player 클래스에서 처리
-        player.update(null); // 맵은 Game에서 전달
+        // 플레이어 이동은 Game 클래스에서 처리하므로 여기서는 하지 않음
     }
     
     /**
