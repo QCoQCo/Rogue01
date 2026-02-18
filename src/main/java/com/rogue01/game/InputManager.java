@@ -100,9 +100,9 @@ public class InputManager {
      */
     private void handlePausedInput() {
         if (inputHandler.isKeyPressed(KeyEvent.VK_ESCAPE)) {
-            // 게임 재개 신호
+            // 게임 재개 (이전 상태로: PLAYING 또는 BATTLE)
             if (game != null) {
-                game.setGameState(GameState.PLAYING);
+                game.resumeFromPause();
             }
             inputHandler.clearKeys();
         } else if (inputHandler.isKeyPressed(KeyEvent.VK_Q)) {
@@ -145,8 +145,14 @@ public class InputManager {
      * 전투 상태 입력 처리
      */
     private void handleBattleInput() {
-        // 전투 입력은 GameWindow에서 직접 처리
-        // 여기서는 특별한 처리가 필요 없음
+        if (inputHandler.isKeyPressed(KeyEvent.VK_ESCAPE)) {
+            // 일시정지 화면으로
+            if (game != null) {
+                game.setGameState(GameState.PAUSED);
+            }
+            inputHandler.clearKeys();
+        }
+        // 전투 메뉴 선택 등은 GameWindow/BattleScreen에서 처리
     }
 
     /**

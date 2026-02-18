@@ -7,6 +7,8 @@ import com.rogue01.entity.Enemy;
 import com.rogue01.entity.EnemyType;
 import com.rogue01.battle.BattleManager;
 import com.rogue01.item.ItemFactory;
+import com.rogue01.item.Item;
+import com.rogue01.item.MapItem;
 import com.rogue01.map.structures.Room;
 import com.rogue01.map.utils.RandomUtils;
 import java.util.ArrayList;
@@ -23,12 +25,19 @@ public class Game {
     private Player player;
     private InputManager inputManager;
     private List<Enemy> enemies;
+    private List<MapItem> mapItems;
     private RandomUtils randomUtils;
     private BattleManager battleManager;
     
     // 게임 통계
     private int killCount;
     private long gameStartTime;
+    
+    // 턴제 시스템
+    private TurnPhase turnPhase;
+    
+    // 일시정지 전 상태 (BATTLE 등에서 복귀용)
+    private GameState stateBeforePause;
 
     public Game() {
         this.gameState = GameState.MENU;
@@ -37,6 +46,7 @@ public class Game {
         this.map = new Map(750, 450);
         this.player = new Player(375, 225);
         this.enemies = new ArrayList<>();
+        this.mapItems = new ArrayList<>();
         this.randomUtils = new RandomUtils();
 
         // 플레이어에게 GameWindow의 InputHandler 설정
@@ -57,6 +67,17 @@ public class Game {
         // 게임 통계 초기화
         this.killCount = 0;
         this.gameStartTime = System.currentTimeMillis();
+        
+        // 턴제: 플레이어 턴부터 시작
+        this.turnPhase = TurnPhase.PLAYER_TURN;
+    }
+    
+    /**
+     * 턴 페이즈 (턴제 로그라이크)
+     */
+    public enum TurnPhase {
+        PLAYER_TURN,   // 플레이어 행동 대기
+        ENEMY_TURN     // 적 행동 처리
     }
 
     public void start() {
@@ -106,28 +127,112 @@ public class Game {
     }
 
     /**
-     * 게임 진행 중 상태 처리
+     * 게임 진행 중 상태 처리 (턴제)
      */
     private void handlePlayingState() {
+        // 메뉴 키는 턴과 무관하게 항상 처리
         if (gameWindow.getInputHandler().isKeyPressed(java.awt.event.KeyEvent.VK_ESCAPE)) {
             setGameState(GameState.PAUSED);
+            return;
         } else if (gameWindow.getInputHandler().isKeyPressed(java.awt.event.KeyEvent.VK_I)) {
             setGameState(GameState.INVENTORY);
+            return;
         } else if (gameWindow.getInputHandler().isKeyPressed(java.awt.event.KeyEvent.VK_M)) {
             setGameState(GameState.MAP_VIEW);
+            return;
         }
 
-        // 플레이어 업데이트 (맵과 함께)
-        player.update(map);
-
-        // 적과의 충돌 체크 (전투 시작)
-        checkEnemyCollision();
-
-        // 적 업데이트
+        if (turnPhase == TurnPhase.PLAYER_TURN) {
+            // 플레이어 턴: 이동 또는 대기
+            if (processPlayerTurn()) {
+                turnPhase = TurnPhase.ENEMY_TURN;
+            }
+        } else {
+            // 적 턴: 모든 적이 한 칸씩 이동
+            processEnemyTurn();
+            turnPhase = TurnPhase.PLAYER_TURN;
+        }
+    }
+    
+    /**
+     * 플레이어 턴 처리 - 이동 또는 대기
+     * @return true if player acted (moved or waited), false otherwise
+     */
+    private boolean processPlayerTurn() {
+        var inputHandler = gameWindow.getInputHandler();
+        
+        // 대기 (턴 넘기기) - Space
+        if (inputHandler.isKeyPressed(java.awt.event.KeyEvent.VK_SPACE)) {
+            inputHandler.consumeKey(java.awt.event.KeyEvent.VK_SPACE);
+            return true;
+        }
+        
+        // 이동 처리
+        int dx = 0, dy = 0;
+        if (inputHandler.isKeyPressed(java.awt.event.KeyEvent.VK_W) || inputHandler.isKeyPressed(java.awt.event.KeyEvent.VK_UP)) {
+            dy = -1;
+        } else if (inputHandler.isKeyPressed(java.awt.event.KeyEvent.VK_S) || inputHandler.isKeyPressed(java.awt.event.KeyEvent.VK_DOWN)) {
+            dy = 1;
+        } else if (inputHandler.isKeyPressed(java.awt.event.KeyEvent.VK_A) || inputHandler.isKeyPressed(java.awt.event.KeyEvent.VK_LEFT)) {
+            dx = -1;
+        } else if (inputHandler.isKeyPressed(java.awt.event.KeyEvent.VK_D) || inputHandler.isKeyPressed(java.awt.event.KeyEvent.VK_RIGHT)) {
+            dx = 1;
+        }
+        
+        if (dx != 0 || dy != 0) {
+            int targetX = player.getX() + dx;
+            int targetY = player.getY() + dy;
+            
+            // 이동 키 소비
+            inputHandler.consumeKey(java.awt.event.KeyEvent.VK_W);
+            inputHandler.consumeKey(java.awt.event.KeyEvent.VK_UP);
+            inputHandler.consumeKey(java.awt.event.KeyEvent.VK_S);
+            inputHandler.consumeKey(java.awt.event.KeyEvent.VK_DOWN);
+            inputHandler.consumeKey(java.awt.event.KeyEvent.VK_A);
+            inputHandler.consumeKey(java.awt.event.KeyEvent.VK_LEFT);
+            inputHandler.consumeKey(java.awt.event.KeyEvent.VK_D);
+            inputHandler.consumeKey(java.awt.event.KeyEvent.VK_RIGHT);
+            
+            // 목표 타일에 적이 있으면 전투 시작
+            Enemy enemyAtTarget = getEnemyAt(targetX, targetY);
+            if (enemyAtTarget != null) {
+                startBattle(enemyAtTarget);
+                return true; // 행동함 (전투 시작)
+            }
+            
+            // 이동 가능하면 이동
+            if (map.isWalkable(targetX, targetY)) {
+                player.setPosition(targetX, targetY);
+                checkItemPickup();
+                return true;
+            }
+            return false; // 벽이라 이동 못함 - 턴 소모 안 함
+        }
+        
+        return false; // 아무 입력 없음
+    }
+    
+    /**
+     * 적 턴 처리 - 모든 적이 한 칸씩 이동
+     */
+    private void processEnemyTurn() {
         updateEnemies();
-
-        // 사망한 적 제거
         removeDeadEnemies();
+        
+        // 적이 플레이어 타일로 이동했으면 전투 시작
+        checkEnemyCollision();
+    }
+    
+    /**
+     * 지정된 위치에 있는 적 반환
+     */
+    private Enemy getEnemyAt(int x, int y) {
+        for (Enemy enemy : enemies) {
+            if (!enemy.isDead() && enemy.getX() == x && enemy.getY() == y) {
+                return enemy;
+            }
+        }
+        return null;
     }
     
     /**
@@ -144,12 +249,18 @@ public class Game {
                 if (result == BattleManager.BattleResult.VICTORY) {
                     // 보상 처리
                     battleManager.processRewards();
+                    // 아이템 드롭 (적 위치에)
+                    dropItemFromEnemy(battleManager.getEnemy());
                     // 전투 중인 적 제거
                     enemies.remove(battleManager.getEnemy());
                     killCount++;
                 } else if (result == BattleManager.BattleResult.DEFEAT) {
                     // 게임 오버
                     setGameState(GameState.GAME_OVER);
+                } else if (result == BattleManager.BattleResult.ESCAPED) {
+                    // 도망 성공: 플레이어를 적 반대 방향으로 한 칸 이동
+                    movePlayerAwayFromEnemy(battleManager.getEnemy());
+                    turnPhase = TurnPhase.PLAYER_TURN; // 플레이어 턴부터 시작
                 }
                 
                 // 전투 종료 후 게임으로 복귀
@@ -183,11 +294,69 @@ public class Game {
     }
     
     /**
+     * 적 처치 시 아이템 드롭
+     */
+    private void dropItemFromEnemy(Enemy enemy) {
+        Item droppedItem = ItemFactory.createRandomDrop();
+        if (droppedItem != null) {
+            mapItems.add(new MapItem(enemy.getX(), enemy.getY(), droppedItem));
+        }
+    }
+    
+    /**
+     * 아이템 획득 체크 (플레이어가 아이템 위에 있을 때 자동 획득)
+     */
+    private void checkItemPickup() {
+        int playerX = player.getX();
+        int playerY = player.getY();
+        
+        mapItems.removeIf(mapItem -> {
+            if (mapItem.getX() == playerX && mapItem.getY() == playerY) {
+                if (!player.getInventory().isFull()) {
+                    player.getInventory().addItem(mapItem.getItem());
+                    return true; // 제거
+                }
+                return false; // 인벤토리 가득 참
+            }
+            return false;
+        });
+    }
+    
+    /**
      * 전투 시작
      */
     private void startBattle(Enemy enemy) {
         battleManager = new BattleManager(player, enemy);
         setGameState(GameState.BATTLE);
+    }
+    
+    /**
+     * 도망 시 플레이어를 적 반대 방향으로 한 칸 이동
+     */
+    private void movePlayerAwayFromEnemy(Enemy enemy) {
+        int dx = player.getX() - enemy.getX();
+        int dy = player.getY() - enemy.getY();
+        // 같은 타일(적이 플레이어에게 온 경우): 4방향 중 빈 타일 탐색
+        if (dx == 0 && dy == 0) {
+            int[][] dirs = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
+            for (int[] d : dirs) {
+                int ex = player.getX() + d[0];
+                int ey = player.getY() + d[1];
+                if (map.isWalkable(ex, ey) && getEnemyAt(ex, ey) == null) {
+                    player.setPosition(ex, ey);
+                    return;
+                }
+            }
+            return;
+        }
+        // 인접한 경우: 적 반대 방향으로 이동
+        if (dx != 0) dx = dx > 0 ? 1 : -1;
+        if (dy != 0) dy = dy > 0 ? 1 : -1;
+        int escapeX = player.getX() + dx;
+        int escapeY = player.getY() + dy;
+        if (map.isWalkable(escapeX, escapeY) && getEnemyAt(escapeX, escapeY) == null) {
+            player.setPosition(escapeX, escapeY);
+        }
     }
 
     /**
@@ -243,6 +412,7 @@ public class Game {
         
         // 적 초기화
         enemies.clear();
+        mapItems.clear();
         spawnEnemies();
         
         // 전투 상태 초기화
@@ -251,6 +421,9 @@ public class Game {
         // 게임 통계 초기화
         killCount = 0;
         gameStartTime = System.currentTimeMillis();
+        
+        // 턴제: 플레이어 턴부터 시작
+        turnPhase = TurnPhase.PLAYER_TURN;
         
         setGameState(GameState.PLAYING);
     }
@@ -263,8 +436,23 @@ public class Game {
      * 게임 상태 변경
      */
     public void setGameState(GameState gameState) {
+        if (gameState == GameState.PAUSED) {
+            this.stateBeforePause = this.gameState;
+        }
         this.gameState = gameState;
         gameWindow.getInputHandler().clearKeys();
+    }
+    
+    /**
+     * 일시정지에서 복귀 (이전 상태로)
+     */
+    public void resumeFromPause() {
+        if (stateBeforePause != null) {
+            setGameState(stateBeforePause);
+            stateBeforePause = null;
+        } else {
+            setGameState(GameState.PLAYING);
+        }
     }
 
     /**
@@ -299,16 +487,15 @@ public class Game {
             int enemyCount = Math.max(1, room.getArea() / 100);
 
             for (int i = 0; i < enemyCount; i++) {
-                // 방 내부의 랜덤 위치 찾기
-                int spawnX = randomUtils.nextInt(room.getX() + 1, room.getX() + room.getWidth() - 2);
-                int spawnY = randomUtils.nextInt(room.getY() + 1, room.getY() + room.getHeight() - 2);
-
-                // 이동 가능한 위치인지 확인
-                if (map.isWalkable(spawnX, spawnY)) {
-                    // 적 타입 랜덤 선택 (약한 적 위주)
-                    EnemyType enemyType = getRandomEnemyType();
-                    Enemy enemy = new Enemy(spawnX, spawnY, enemyType);
-                    enemies.add(enemy);
+                for (int attempt = 0; attempt < 10; attempt++) {
+                    int spawnX = randomUtils.nextInt(room.getX() + 1, room.getX() + room.getWidth() - 2);
+                    int spawnY = randomUtils.nextInt(room.getY() + 1, room.getY() + room.getHeight() - 2);
+                    if (map.isWalkable(spawnX, spawnY) && getEnemyAt(spawnX, spawnY) == null) {
+                        EnemyType enemyType = getRandomEnemyType();
+                        Enemy enemy = new Enemy(spawnX, spawnY, enemyType);
+                        enemies.add(enemy);
+                        break;
+                    }
                 }
             }
         }
@@ -334,7 +521,7 @@ public class Game {
                 int distance = (int) Math.sqrt(
                         Math.pow(x - playerStartX, 2) + Math.pow(y - playerStartY, 2));
 
-                if (map.isWalkable(x, y) && distance >= 10) {
+                if (map.isWalkable(x, y) && distance >= 10 && getEnemyAt(x, y) == null) {
                     EnemyType enemyType = getRandomEnemyType();
                     Enemy enemy = new Enemy(x, y, enemyType);
                     enemies.add(enemy);
@@ -369,7 +556,7 @@ public class Game {
     private void updateEnemies() {
         for (Enemy enemy : enemies) {
             if (!enemy.isDead()) {
-                enemy.update(map, player);
+                enemy.update(map, player, enemies);
             }
         }
     }
@@ -404,6 +591,10 @@ public class Game {
 
     public List<Enemy> getEnemies() {
         return new ArrayList<>(enemies);
+    }
+    
+    public List<MapItem> getMapItems() {
+        return new ArrayList<>(mapItems);
     }
     
     public BattleManager getBattleManager() {

@@ -255,6 +255,23 @@ public class GameWindow extends JFrame {
                     }
                 }
                 
+                // 맵 아이템 렌더링
+                g2d.setFont(new Font("Monospaced", Font.PLAIN, TILE_SIZE));
+                for (com.rogue01.item.MapItem mapItem : currentGame.getMapItems()) {
+                    int itemX = mapItem.getX();
+                    int itemY = mapItem.getY();
+                    
+                    if (itemX >= cameraX && itemX < cameraX + visibleTilesX &&
+                        itemY >= cameraY && itemY < cameraY + visibleTilesY) {
+                        
+                        int screenX = offsetX + (itemX - cameraX) * TILE_SIZE;
+                        int screenY = offsetY + (itemY - cameraY + 1) * TILE_SIZE;
+                        
+                        g2d.setColor(Color.YELLOW);
+                        g2d.drawString(String.valueOf(mapItem.getItem().getSymbol()), screenX, screenY);
+                    }
+                }
+                
                 // 적 렌더링
                 g2d.setFont(new Font("Monospaced", Font.PLAIN, TILE_SIZE));
                 for (com.rogue01.entity.Enemy enemy : currentGame.getEnemies()) {

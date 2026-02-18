@@ -2,6 +2,7 @@ package com.rogue01.entity;
 
 import com.rogue01.map.Map;
 import com.rogue01.map.utils.RandomUtils;
+import java.util.List;
 
 /**
  * 적(몬스터) 엔티티 클래스
@@ -11,8 +12,6 @@ public class Enemy extends Entity {
     private int attack;
     private int defense;
     private int experience;
-    private int moveCooldown;
-    private int moveTimer;
     private RandomUtils randomUtils;
     
     // AI 상태
@@ -28,8 +27,6 @@ public class Enemy extends Entity {
         this.attack = enemyType.getAttack();
         this.defense = enemyType.getDefense();
         this.experience = enemyType.getExperience();
-        this.moveCooldown = 10; // 이동 쿨다운 (프레임 단위)
-        this.moveTimer = 0;
         this.randomUtils = new RandomUtils();
         this.hasSeenPlayer = false;
     }
@@ -39,32 +36,18 @@ public class Enemy extends Entity {
         if (isDead()) {
             return;
         }
-        
-        // 이동 쿨다운 체크
-        moveTimer++;
-        if (moveTimer < moveCooldown) {
-            return;
-        }
-        moveTimer = 0;
-        
-        // 간단한 AI: 랜덤 이동 (나중에 플레이어 추적으로 개선)
-        randomMove(map);
+        // 턴제: 호출될 때마다 한 칸 이동 (다른 적 없을 때만 - List<Enemy> 없는 경우 호출 시)
+        randomMove(map, List.of());
     }
     
     /**
-     * 플레이어를 추적하는 AI 업데이트
+     * 플레이어를 추적하는 AI 업데이트 (턴제: 호출될 때마다 한 칸 이동)
+     * @param allEnemies 다른 적과 겹치지 않도록 전체 적 목록 필요
      */
-    public void update(Map map, Player player) {
+    public void update(Map map, Player player, List<Enemy> allEnemies) {
         if (isDead()) {
             return;
         }
-        
-        // 이동 쿨다운 체크
-        moveTimer++;
-        if (moveTimer < moveCooldown) {
-            return;
-        }
-        moveTimer = 0;
         
         // 플레이어와의 거리 계산
         int dx = player.getX() - x;
@@ -79,54 +62,54 @@ public class Enemy extends Entity {
             lastPlayerY = player.getY();
             
             // 플레이어에게 접근
-            moveTowards(map, player.getX(), player.getY());
+            moveTowards(map, player.getX(), player.getY(), allEnemies);
         } else if (hasSeenPlayer && distance <= sightRange * 2) {
             // 마지막으로 본 위치로 이동
-            moveTowards(map, lastPlayerX, lastPlayerY);
+            moveTowards(map, lastPlayerX, lastPlayerY, allEnemies);
         } else {
             // 시야 밖이면 랜덤 이동
             hasSeenPlayer = false;
-            randomMove(map);
+            randomMove(map, allEnemies);
         }
     }
     
     /**
-     * 목표 위치로 이동
+     * 목표 위치로 이동 (다른 적이 있는 타일로는 이동하지 않음)
      */
-    private void moveTowards(Map map, int targetX, int targetY) {
+    private void moveTowards(Map map, int targetX, int targetY, List<Enemy> allEnemies) {
         int dx = targetX - x;
         int dy = targetY - y;
         
         // X 또는 Y 방향으로 이동
         if (Math.abs(dx) > Math.abs(dy)) {
             // X 방향 우선
-            if (dx > 0 && map.isWalkable(x + 1, y)) {
+            if (dx > 0 && canMoveTo(map, x + 1, y, allEnemies)) {
                 x++;
-            } else if (dx < 0 && map.isWalkable(x - 1, y)) {
+            } else if (dx < 0 && canMoveTo(map, x - 1, y, allEnemies)) {
                 x--;
-            } else if (dy > 0 && map.isWalkable(x, y + 1)) {
+            } else if (dy > 0 && canMoveTo(map, x, y + 1, allEnemies)) {
                 y++;
-            } else if (dy < 0 && map.isWalkable(x, y - 1)) {
+            } else if (dy < 0 && canMoveTo(map, x, y - 1, allEnemies)) {
                 y--;
             }
         } else {
             // Y 방향 우선
-            if (dy > 0 && map.isWalkable(x, y + 1)) {
+            if (dy > 0 && canMoveTo(map, x, y + 1, allEnemies)) {
                 y++;
-            } else if (dy < 0 && map.isWalkable(x, y - 1)) {
+            } else if (dy < 0 && canMoveTo(map, x, y - 1, allEnemies)) {
                 y--;
-            } else if (dx > 0 && map.isWalkable(x + 1, y)) {
+            } else if (dx > 0 && canMoveTo(map, x + 1, y, allEnemies)) {
                 x++;
-            } else if (dx < 0 && map.isWalkable(x - 1, y)) {
+            } else if (dx < 0 && canMoveTo(map, x - 1, y, allEnemies)) {
                 x--;
             }
         }
     }
     
     /**
-     * 랜덤 이동
+     * 랜덤 이동 (다른 적이 있는 타일로는 이동하지 않음)
      */
-    private void randomMove(Map map) {
+    private void randomMove(Map map, List<Enemy> allEnemies) {
         int direction = randomUtils.nextInt(4);
         int newX = x;
         int newY = y;
@@ -146,10 +129,26 @@ public class Enemy extends Entity {
                 break;
         }
         
-        if (map.isWalkable(newX, newY)) {
+        if (canMoveTo(map, newX, newY, allEnemies)) {
             x = newX;
             y = newY;
         }
+    }
+    
+    /**
+     * 해당 위치로 이동 가능한지 (맵이 통과 가능하고, 다른 적이 없음)
+     * 플레이어 위치는 허용 (전투 시작용)
+     */
+    private boolean canMoveTo(Map map, int targetX, int targetY, List<Enemy> allEnemies) {
+        if (!map.isWalkable(targetX, targetY)) {
+            return false;
+        }
+        for (Enemy other : allEnemies) {
+            if (other != this && !other.isDead() && other.getX() == targetX && other.getY() == targetY) {
+                return false;
+            }
+        }
+        return true;
     }
     
     /**
@@ -188,13 +187,5 @@ public class Enemy extends Entity {
     
     public int getExperience() {
         return experience;
-    }
-    
-    public int getMoveCooldown() {
-        return moveCooldown;
-    }
-    
-    public void setMoveCooldown(int moveCooldown) {
-        this.moveCooldown = Math.max(1, moveCooldown);
     }
 }
