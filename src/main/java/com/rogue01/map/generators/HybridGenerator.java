@@ -9,6 +9,8 @@ public class HybridGenerator implements MapGenerator {
     private long seed;
     private List<Room> rooms;
     private long generationTime;
+    private int lastWidth;
+    private int lastHeight;
     
     // 각 생성기
     private RoomCorridorGenerator roomGenerator;
@@ -25,6 +27,8 @@ public class HybridGenerator implements MapGenerator {
     @Override
     public Tile[][] generate(int width, int height) {
         long startTime = System.currentTimeMillis();
+        this.lastWidth = width;
+        this.lastHeight = height;
         
         // 맵을 벽으로 초기화
         Tile[][] tiles = new Tile[width][height];
@@ -189,9 +193,9 @@ public class HybridGenerator implements MapGenerator {
     
     @Override
     public MapGenerationInfo getGenerationInfo() {
-        // 맵 크기는 생성 시점에 알 수 없으므로 기본값 사용
-        int playerStartX = 50; // 기본 맵 크기의 중앙
-        int playerStartY = 30;
+        // 맵 중심을 플레이어 시작 위치로 사용
+        int playerStartX = lastWidth / 2;
+        int playerStartY = lastHeight / 2;
         
         return new MapGenerationInfo(rooms.size(), rooms.size() * 2, playerStartX, playerStartY, rooms, generationTime);
     }

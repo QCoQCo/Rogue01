@@ -328,6 +328,9 @@ public class GameWindow extends JFrame {
             } else if (currentGame != null && currentGame.getGameState() == com.rogue01.game.GameState.BATTLE) {
                 // 전투 화면
                 drawBattleScreen(g2d);
+            } else if (currentGame != null && currentGame.getGameState() == com.rogue01.game.GameState.GAME_OVER) {
+                // 게임 오버 화면
+                drawGameOverScreen(g2d);
             }
         }
         
@@ -582,6 +585,41 @@ public class GameWindow extends JFrame {
             }
             
             battleScreen.render(g2d, getWidth(), getHeight());
+        }
+        
+        /**
+         * 게임 오버 화면 그리기
+         */
+        private void drawGameOverScreen(Graphics2D g2d) {
+            // 반투명 배경
+            g2d.setColor(new Color(0, 0, 0, 200));
+            g2d.fillRect(0, 0, getWidth(), getHeight());
+            
+            // 게임 오버 타이틀
+            g2d.setFont(new Font("Monospaced", Font.BOLD, 56));
+            g2d.setColor(Color.RED);
+            g2d.drawString("GAME OVER", getWidth() / 2 - 180, getHeight() / 2 - 80);
+            
+            // 게임 통계
+            g2d.setFont(new Font("Monospaced", Font.PLAIN, 20));
+            g2d.setColor(Color.WHITE);
+            int statsY = getHeight() / 2 - 20;
+            g2d.drawString("처치한 적: " + currentGame.getKillCount() + " 마리", getWidth() / 2 - 100, statsY);
+            g2d.drawString("생존 시간: " + formatTime(currentGame.getSurvivalTimeSeconds()), getWidth() / 2 - 100, statsY + 30);
+            
+            // 옵션
+            g2d.setFont(new Font("Monospaced", Font.PLAIN, 18));
+            g2d.setColor(Color.LIGHT_GRAY);
+            int optY = getHeight() / 2 + 50;
+            g2d.drawString("R: 재시작", getWidth() / 2 - 80, optY);
+            g2d.drawString("M: 메인 메뉴", getWidth() / 2 - 80, optY + 30);
+            g2d.drawString("Q: 종료", getWidth() / 2 - 80, optY + 60);
+        }
+        
+        private String formatTime(long seconds) {
+            long min = seconds / 60;
+            long sec = seconds % 60;
+            return String.format("%d분 %d초", min, sec);
         }
     }
     

@@ -25,6 +25,10 @@ public class Game {
     private List<Enemy> enemies;
     private RandomUtils randomUtils;
     private BattleManager battleManager;
+    
+    // 게임 통계
+    private int killCount;
+    private long gameStartTime;
 
     public Game() {
         this.gameState = GameState.MENU;
@@ -49,6 +53,10 @@ public class Game {
 
         // 적 스폰
         spawnEnemies();
+        
+        // 게임 통계 초기화
+        this.killCount = 0;
+        this.gameStartTime = System.currentTimeMillis();
     }
 
     public void start() {
@@ -138,6 +146,7 @@ public class Game {
                     battleManager.processRewards();
                     // 전투 중인 적 제거
                     enemies.remove(battleManager.getEnemy());
+                    killCount++;
                 } else if (result == BattleManager.BattleResult.DEFEAT) {
                     // 게임 오버
                     setGameState(GameState.GAME_OVER);
@@ -214,7 +223,36 @@ public class Game {
      * 게임 오버 상태 처리
      */
     private void handleGameOverState() {
-        // 게임 오버 상태에서의 추가 로직
+        // 입력 처리는 InputManager에서 담당 (재시작, 메뉴, 종료)
+    }
+    
+    /**
+     * 게임 재시작
+     */
+    public void restartGame() {
+        // 맵 재생성
+        map.regenerate(Map.MapGeneratorType.HYBRID);
+        
+        // 플레이어 초기화
+        int startX = map.getGenerationInfo().getPlayerStartX();
+        int startY = map.getGenerationInfo().getPlayerStartY();
+        player.setPosition(startX, startY);
+        player.setHealth(player.getMaxHealth());
+        player.getInventory().clear();
+        addTestItems();
+        
+        // 적 초기화
+        enemies.clear();
+        spawnEnemies();
+        
+        // 전투 상태 초기화
+        battleManager = null;
+        
+        // 게임 통계 초기화
+        killCount = 0;
+        gameStartTime = System.currentTimeMillis();
+        
+        setGameState(GameState.PLAYING);
     }
 
     public void render() {
@@ -370,6 +408,21 @@ public class Game {
     
     public BattleManager getBattleManager() {
         return battleManager;
+    }
+    
+    public int getKillCount() {
+        return killCount;
+    }
+    
+    public long getGameStartTime() {
+        return gameStartTime;
+    }
+    
+    /**
+     * 생존 시간 (초)
+     */
+    public long getSurvivalTimeSeconds() {
+        return (System.currentTimeMillis() - gameStartTime) / 1000;
     }
 
     /**
