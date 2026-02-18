@@ -44,6 +44,9 @@ public class InputManager {
             case MAP_VIEW:
                 handleMapViewInput();
                 break;
+            case BATTLE:
+                handleBattleInput();
+                break;
             case GAME_OVER:
                 handleGameOverInput();
                 break;
@@ -136,6 +139,14 @@ public class InputManager {
             }
             inputHandler.clearKeys();
         }
+    }
+    
+    /**
+     * 전투 상태 입력 처리
+     */
+    private void handleBattleInput() {
+        // 전투 입력은 GameWindow에서 직접 처리
+        // 여기서는 특별한 처리가 필요 없음
     }
     
     /**

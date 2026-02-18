@@ -2,9 +2,12 @@ package com.rogue01.ui;
 
 import com.rogue01.game.Game;
 import com.rogue01.util.InputHandler;
+import com.rogue01.battle.BattleScreen;
+import com.rogue01.battle.BattleManager;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.KeyEvent;
 
 public class GameWindow extends JFrame {
     private GamePanel gamePanel;
@@ -12,6 +15,7 @@ public class GameWindow extends JFrame {
     private Game currentGame; // 현재 게임 인스턴스 참조
     private int selectedInventorySlot = -1; // 선택된 인벤토리 슬롯
     private int selectedEquipmentSlot = -1; // 선택된 장비 슬롯
+    private BattleScreen battleScreen; // 전투 화면
     
     public GameWindow() {
         setTitle("Rogue01");
@@ -23,6 +27,15 @@ public class GameWindow extends JFrame {
         
         add(gamePanel);
         addKeyListener(inputHandler);
+        // 전투 화면 키 입력 처리
+        addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent e) {
+                if (currentGame != null && currentGame.getGameState() == com.rogue01.game.GameState.BATTLE) {
+                    handleBattleInput(e);
+                }
+            }
+        });
         // GamePanel에 직접 마우스 리스너 추가
         gamePanel.addMouseListener(new java.awt.event.MouseAdapter() {
             @Override
@@ -37,6 +50,12 @@ public class GameWindow extends JFrame {
     
     public void render(Game game) {
         this.currentGame = game; // 현재 게임 인스턴스 저장
+        
+        // 전투 종료 시 battleScreen 초기화
+        if (game.getGameState() != com.rogue01.game.GameState.BATTLE) {
+            battleScreen = null;
+        }
+        
         gamePanel.render(game);
         repaint();
     }
@@ -231,15 +250,45 @@ public class GameWindow extends JFrame {
                             g2d.setColor(Color.WHITE); // 기타
                         }
                         
-                        // 플레이어 위치면 플레이어 심볼로 덮어씀
-                        if (player.getX() == mapX && player.getY() == mapY) {
-                            g2d.setColor(Color.GREEN);
-                            g2d.drawString(String.valueOf(player.getSymbol()), offsetX + x * TILE_SIZE, offsetY + (y+1) * TILE_SIZE);
-                        } else {
-                            g2d.drawString(String.valueOf(symbol), offsetX + x * TILE_SIZE, offsetY + (y+1) * TILE_SIZE);
-                        }
+                        // 타일 그리기
+                        g2d.drawString(String.valueOf(symbol), offsetX + x * TILE_SIZE, offsetY + (y+1) * TILE_SIZE);
                     }
                 }
+                
+                // 적 렌더링
+                g2d.setFont(new Font("Monospaced", Font.PLAIN, TILE_SIZE));
+                for (com.rogue01.entity.Enemy enemy : currentGame.getEnemies()) {
+                    if (enemy.isDead()) continue;
+                    
+                    int enemyX = enemy.getX();
+                    int enemyY = enemy.getY();
+                    
+                    // 화면에 보이는 범위 내에 있는지 확인
+                    if (enemyX >= cameraX && enemyX < cameraX + visibleTilesX &&
+                        enemyY >= cameraY && enemyY < cameraY + visibleTilesY) {
+                        
+                        int screenX = offsetX + (enemyX - cameraX) * TILE_SIZE;
+                        int screenY = offsetY + (enemyY - cameraY + 1) * TILE_SIZE;
+                        
+                        // 적 색상 설정
+                        g2d.setColor(Color.RED);
+                        g2d.drawString(String.valueOf(enemy.getSymbol()), screenX, screenY);
+                    }
+                }
+                
+                // 플레이어 렌더링 (적 위에 그려서 항상 보이도록)
+                if (player.getX() >= cameraX && player.getX() < cameraX + visibleTilesX &&
+                    player.getY() >= cameraY && player.getY() < cameraY + visibleTilesY) {
+                    int playerScreenX = offsetX + (player.getX() - cameraX) * TILE_SIZE;
+                    int playerScreenY = offsetY + (player.getY() - cameraY + 1) * TILE_SIZE;
+                    g2d.setColor(Color.GREEN);
+                    g2d.drawString(String.valueOf(player.getSymbol()), playerScreenX, playerScreenY);
+                }
+                
+                // 적 정보 표시 (HUD에)
+                g2d.setColor(Color.WHITE);
+                g2d.setFont(new Font("Monospaced", Font.PLAIN, 12));
+                g2d.drawString("Enemies: " + currentGame.getEnemies().size(), 600, 25);
                 
                 // 하단 정보 패널
                 g2d.setColor(new Color(0, 0, 0, 180));
@@ -276,6 +325,9 @@ public class GameWindow extends JFrame {
             } else if (currentGame != null && currentGame.getGameState() == com.rogue01.game.GameState.MAP_VIEW) {
                 // 맵 뷰
                 drawMapView(g2d);
+            } else if (currentGame != null && currentGame.getGameState() == com.rogue01.game.GameState.BATTLE) {
+                // 전투 화면
+                drawBattleScreen(g2d);
             }
         }
         
@@ -512,7 +564,43 @@ public class GameWindow extends JFrame {
             g2d.setColor(Color.WHITE);
             g2d.setFont(new Font("Monospaced", Font.BOLD, 14));
             g2d.drawString("Player: (" + player.getX() + ", " + player.getY() + ") | HP: " + player.getHealth(), 30, getHeight() - 60);
-            g2d.drawString("Map: " + currentGame.getMap().getWidth() + "x" + currentGame.getMap().getHeight() + " | Scale: 1:" + Math.max(5, Math.min(currentGame.getMap().getWidth(), currentGame.getMap().getHeight()) / 50), 30, getHeight() - 40);
+                g2d.drawString("Map: " + currentGame.getMap().getWidth() + "x" + currentGame.getMap().getHeight() + " | Scale: 1:" + Math.max(5, Math.min(currentGame.getMap().getWidth(), currentGame.getMap().getHeight()) / 50), 30, getHeight() - 40);
+        }
+        
+        /**
+         * 전투 화면 그리기
+         */
+        private void drawBattleScreen(Graphics2D g2d) {
+            BattleManager battleManager = currentGame.getBattleManager();
+            if (battleManager == null) {
+                return;
+            }
+            
+            // BattleScreen은 전투 시작 시 한 번만 생성 (선택 상태 유지를 위해)
+            if (battleScreen == null) {
+                battleScreen = new BattleScreen(battleManager);
+            }
+            
+            battleScreen.render(g2d, getWidth(), getHeight());
         }
     }
-} 
+    
+    /**
+     * 키 입력 처리 (전투 화면용)
+     */
+    public void handleBattleInput(KeyEvent e) {
+        if (currentGame != null && currentGame.getGameState() == com.rogue01.game.GameState.BATTLE) {
+            if (battleScreen != null) {
+                battleScreen.handleInput(e);
+            }
+            
+            // 전투 종료 후 아무 키나 눌러 계속
+            BattleManager battleManager = currentGame.getBattleManager();
+            if (battleManager != null && battleManager.isBattleEnded()) {
+                if (e.getKeyCode() != KeyEvent.VK_UP && e.getKeyCode() != KeyEvent.VK_DOWN) {
+                    // 전투 종료 처리 (Game 클래스에서 처리됨)
+                }
+            }
+        }
+    }
+}

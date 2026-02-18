@@ -6,5 +6,6 @@ public enum GameState {
     PAUSED,     // 일시정지
     INVENTORY,  // 인벤토리 창
     MAP_VIEW,   // 맵 뷰
+    BATTLE,     // 전투 중 (JRPG 스타일)
     GAME_OVER   // 게임 오버
 } 
