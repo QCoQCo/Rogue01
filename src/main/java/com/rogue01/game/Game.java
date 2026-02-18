@@ -406,7 +406,7 @@ public class Game {
         int startX = map.getGenerationInfo().getPlayerStartX();
         int startY = map.getGenerationInfo().getPlayerStartY();
         player.setPosition(startX, startY);
-        player.setHealth(player.getMaxHealth());
+        player.resetLevelAndStats();
         player.getInventory().clear();
         addTestItems();
         

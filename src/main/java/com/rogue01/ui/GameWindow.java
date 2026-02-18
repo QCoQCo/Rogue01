@@ -76,10 +76,10 @@ public class GameWindow extends JFrame {
     }
     
     private void handleEquipmentSlotClick(int x, int y) {
-        int startX = 50;
-        int startY = 100;
-        int slotSize = 60;
-        int spacing = 70; // 슬롯 간격을 줄여서 더 정확한 클릭 영역 확보
+        int startX = 260;
+        int startY = 75;
+        int slotSize = 56;
+        int spacing = 62;
         
         for (int i = 0; i < 7; i++) {
             int slotX = startX + (i * spacing);
@@ -114,11 +114,11 @@ public class GameWindow extends JFrame {
     }
     
     private void handleInventorySlotClick(int x, int y) {
-        int startX = 50;
-        int startY = 250;
-        int itemsPerRow = 10;
-        int slotSize = 40;
-        int spacing = 45; // 슬롯 간격을 줄여서 더 정확한 클릭 영역 확보
+        int startX = 260;
+        int startY = 165;
+        int itemsPerRow = 12;
+        int slotSize = 38;
+        int spacing = 42;
         
         for (int i = 0; i < 50; i++) {
             int row = i / itemsPerRow;
@@ -199,9 +199,14 @@ public class GameWindow extends JFrame {
                 g2d.setColor(Color.WHITE);
                 
                 // 플레이어 정보
-                g2d.drawString("HP: " + player.getHealth() + "/" + player.getMaxHealth(), 20, 25);
-                g2d.drawString("Position: (" + player.getX() + ", " + player.getY() + ")", 200, 25);
-                g2d.drawString("Player: " + player.getName(), 450, 25);
+                g2d.setFont(new Font("Monospaced", Font.BOLD, 14));
+                g2d.drawString("Lv." + player.getLevel(), 20, 22);
+                g2d.drawString("HP: " + player.getHealth() + "/" + player.getMaxHealth(), 60, 22);
+                g2d.drawString("ATK:" + player.getAttack() + " DEF:" + player.getDefense(), 220, 22);
+                int expNext = player.getExpToNextLevel();
+                g2d.setColor(Color.CYAN);
+                g2d.drawString("EXP: " + player.getExperience() + "/" + expNext, 350, 22);
+                g2d.setColor(Color.WHITE);
                 
                 // 게임 상태
                 // g2d.setColor(Color.YELLOW);
@@ -353,37 +358,95 @@ public class GameWindow extends JFrame {
         
         private void drawInventory(Graphics2D g2d) {
             // 배경
-            g2d.setColor(new Color(0, 0, 0, 200));
+            g2d.setColor(new Color(30, 30, 40));
             g2d.fillRect(0, 0, getWidth(), getHeight());
             
-            // 제목
+            com.rogue01.entity.Player player = currentGame.getPlayer();
+            
+            // 좌측 스탯 패널
+            drawInventoryStatsPanel(g2d, player);
+            
+            // 중앙: 제목 + 장비 슬롯
+            g2d.setColor(new Color(45, 45, 55));
+            g2d.fillRect(240, 0, getWidth() - 240, getHeight());
+            
             g2d.setColor(Color.WHITE);
-            g2d.setFont(new Font("Monospaced", Font.BOLD, 24));
-            g2d.drawString("INVENTORY", getWidth()/2 - 80, 50);
+            g2d.setFont(new Font("Monospaced", Font.BOLD, 22));
+            g2d.drawString("인벤토리", 260, 45);
             
-            // 장비 슬롯 (상단)
             drawEquipmentSlots(g2d);
-            
-            // 인벤토리 아이템 (하단)
             drawInventoryItems(g2d);
+            drawInventoryItemDetail(g2d, player);
             
             // 조작법
-            g2d.setColor(Color.LIGHT_GRAY);
+            g2d.setColor(new Color(180, 180, 180));
+            g2d.setFont(new Font("Monospaced", Font.PLAIN, 12));
+            g2d.drawString("I/ESC: 닫기 | 클릭: 장비 착용/해제 | 1-7: 빠른 선택", getWidth()/2 - 150, getHeight() - 15);
+        }
+        
+        private void drawInventoryStatsPanel(Graphics2D g2d, com.rogue01.entity.Player player) {
+            int panelX = 15;
+            int panelY = 50;
+            int panelW = 210;
+            int panelH = 220;
+            
+            // 패널 배경
+            g2d.setColor(new Color(50, 55, 70));
+            g2d.fillRoundRect(panelX, panelY, panelW, panelH, 8, 8);
+            g2d.setColor(new Color(80, 90, 110));
+            g2d.drawRoundRect(panelX, panelY, panelW, panelH, 8, 8);
+            
+            g2d.setColor(new Color(200, 210, 230));
+            g2d.setFont(new Font("Monospaced", Font.BOLD, 16));
+            g2d.drawString("플레이어 스탯", panelX + 15, panelY + 25);
+            
             g2d.setFont(new Font("Monospaced", Font.PLAIN, 14));
-            g2d.drawString("I/ESC: Close Inventory | Click: Equip/Unequip | 1-7: Quick Select", getWidth()/2 - 200, getHeight() - 30);
+            g2d.setColor(Color.WHITE);
+            g2d.drawString("Lv." + player.getLevel(), panelX + 15, panelY + 50);
+            
+            // HP 바
+            g2d.setColor(new Color(80, 80, 90));
+            g2d.fillRect(panelX + 15, panelY + 58, 180, 14);
+            g2d.setColor(new Color(180, 60, 60));
+            g2d.fillRect(panelX + 15, panelY + 58, (int)(180 * player.getHealthRatio()), 14);
+            g2d.setColor(Color.WHITE);
+            g2d.drawString("HP " + player.getHealth() + "/" + player.getMaxHealth(), panelX + 15, panelY + 85);
+            
+            // EXP 바
+            double expRatio = (double) player.getExperience() / player.getExpToNextLevel();
+            g2d.setColor(new Color(60, 60, 80));
+            g2d.fillRect(panelX + 15, panelY + 95, 180, 10);
+            g2d.setColor(new Color(70, 130, 180));
+            g2d.fillRect(panelX + 15, panelY + 95, (int)(180 * Math.min(1, expRatio)), 10);
+            g2d.setColor(new Color(180, 200, 220));
+            g2d.drawString("EXP " + player.getExperience() + "/" + player.getExpToNextLevel(), panelX + 15, panelY + 120);
+            
+            // 공격력/방어력
+            g2d.setColor(new Color(220, 180, 100));
+            g2d.drawString("공격력: " + player.getAttack(), panelX + 15, panelY + 150);
+            g2d.setColor(new Color(100, 180, 220));
+            g2d.drawString("방어력: " + player.getDefense(), panelX + 15, panelY + 170);
+            
+            // 기본 스탯 (장비 제외)
+            g2d.setColor(new Color(140, 140, 160));
+            g2d.setFont(new Font("Monospaced", Font.PLAIN, 11));
+            g2d.drawString("(기본 ATK:" + player.getBaseAttack() + " DEF:" + player.getBaseDefense() + ")", panelX + 15, panelY + 195);
         }
         
         private void drawEquipmentSlots(Graphics2D g2d) {
-            int startX = 50;
-            int startY = 100;
-            int slotSize = 60;
-            int spacing = 70; // 클릭 처리와 동일한 간격
+            int startX = 260;
+            int startY = 75;
+            int slotSize = 56;
+            int spacing = 62;
             
             com.rogue01.entity.Player player = currentGame.getPlayer();
             com.rogue01.item.Inventory inventory = player.getInventory();
             
-            // 장비 슬롯 그리기
-            String[] slotNames = {"투구", "갑옷", "신발", "반지", "목걸이", "왼손", "오른손"};
+            g2d.setColor(new Color(180, 185, 200));
+            g2d.setFont(new Font("Monospaced", Font.BOLD, 13));
+            g2d.drawString("장비 슬롯", startX, startY - 25);
+            
+            String[] slotNames = {"투구", "갑옷", "신발", "반지", "목걸이", "보조", "주무기"};
             com.rogue01.item.ItemType[] slotTypes = {
                 com.rogue01.item.ItemType.HELMET,
                 com.rogue01.item.ItemType.ARMOR,
@@ -398,55 +461,48 @@ public class GameWindow extends JFrame {
                 int x = startX + (i * spacing);
                 int y = startY;
                 
-                // 슬롯 배경
                 if (selectedEquipmentSlot == i) {
-                    g2d.setColor(Color.YELLOW);
-                    g2d.fillRect(x, y, slotSize, slotSize);
-                    g2d.setColor(Color.ORANGE);
-                    g2d.drawRect(x, y, slotSize, slotSize);
+                    g2d.setColor(new Color(255, 220, 100));
+                    g2d.fillRoundRect(x, y, slotSize, slotSize, 6, 6);
+                    g2d.setColor(new Color(255, 180, 50));
+                    g2d.drawRoundRect(x, y, slotSize, slotSize, 6, 6);
                 } else {
-                    g2d.setColor(Color.DARK_GRAY);
-                    g2d.fillRect(x, y, slotSize, slotSize);
-                    g2d.setColor(Color.GRAY);
-                    g2d.drawRect(x, y, slotSize, slotSize);
+                    g2d.setColor(new Color(60, 65, 80));
+                    g2d.fillRoundRect(x, y, slotSize, slotSize, 6, 6);
+                    g2d.setColor(new Color(90, 95, 110));
+                    g2d.drawRoundRect(x, y, slotSize, slotSize, 6, 6);
                 }
                 
-                // 슬롯 이름
-                g2d.setColor(Color.WHITE);
-                g2d.setFont(new Font("Monospaced", Font.PLAIN, 12));
-                g2d.drawString(slotNames[i], x, y - 5);
+                g2d.setColor(new Color(200, 205, 220));
+                g2d.setFont(new Font("Monospaced", Font.PLAIN, 10));
+                g2d.drawString(slotNames[i], x + 4, y - 4);
                 
-                // 장착된 아이템 표시
                 com.rogue01.item.Equipment equipped = inventory.getEquippedItem(slotTypes[i]);
                 if (equipped != null) {
-                    g2d.setColor(Color.YELLOW);
-                    g2d.setFont(new Font("Monospaced", Font.BOLD, 20));
-                    g2d.drawString(String.valueOf(equipped.getSymbol()), x + 20, y + 35);
-                    
-                    // 내구도 표시
-                    g2d.setColor(Color.LIGHT_GRAY);
-                    g2d.setFont(new Font("Monospaced", Font.PLAIN, 10));
-                    g2d.drawString(equipped.getDurability() + "/" + equipped.getMaxDurability(), x, y + slotSize + 15);
+                    g2d.setColor(new Color(255, 230, 150));
+                    g2d.setFont(new Font("Monospaced", Font.BOLD, 22));
+                    g2d.drawString(String.valueOf(equipped.getSymbol()), x + 16, y + 36);
+                    g2d.setColor(new Color(150, 155, 170));
+                    g2d.setFont(new Font("Monospaced", Font.PLAIN, 9));
+                    g2d.drawString(equipped.getDurability() + "/" + equipped.getMaxDurability(), x + 2, y + slotSize + 12);
                 }
             }
         }
         
         private void drawInventoryItems(Graphics2D g2d) {
-            int startX = 50;
-            int startY = 250;
-            int itemsPerRow = 10;
-            int slotSize = 40;
-            int spacing = 45; // 클릭 처리와 동일한 간격
+            int startX = 260;
+            int startY = 165;
+            int itemsPerRow = 12;
+            int slotSize = 38;
+            int spacing = 42;
             
             com.rogue01.entity.Player player = currentGame.getPlayer();
             com.rogue01.item.Inventory inventory = player.getInventory();
             
-            // 제목
-            g2d.setColor(Color.WHITE);
-            g2d.setFont(new Font("Monospaced", Font.BOLD, 18));
-            g2d.drawString("Inventory (" + inventory.getSize() + "/" + inventory.getMaxSize() + ")", startX, startY - 20);
+            g2d.setColor(new Color(180, 185, 200));
+            g2d.setFont(new Font("Monospaced", Font.BOLD, 13));
+            g2d.drawString("아이템 (" + inventory.getSize() + "/" + inventory.getMaxSize() + ")", startX, startY - 18);
             
-            // 아이템 그리드
             for (int i = 0; i < inventory.getSize(); i++) {
                 int row = i / itemsPerRow;
                 int col = i % itemsPerRow;
@@ -455,34 +511,69 @@ public class GameWindow extends JFrame {
                 
                 com.rogue01.item.Item item = inventory.getItem(i);
                 
-                // 슬롯 배경
                 if (selectedInventorySlot == i) {
-                    g2d.setColor(Color.CYAN);
-                    g2d.fillRect(x, y, slotSize, slotSize);
-                    g2d.setColor(Color.BLUE);
-                    g2d.drawRect(x, y, slotSize, slotSize);
+                    g2d.setColor(new Color(100, 180, 220));
+                    g2d.fillRoundRect(x, y, slotSize, slotSize, 4, 4);
+                    g2d.setColor(new Color(80, 160, 200));
+                    g2d.drawRoundRect(x, y, slotSize, slotSize, 4, 4);
                 } else {
-                    g2d.setColor(Color.DARK_GRAY);
-                    g2d.fillRect(x, y, slotSize, slotSize);
-                    g2d.setColor(Color.GRAY);
-                    g2d.drawRect(x, y, slotSize, slotSize);
+                    g2d.setColor(new Color(55, 60, 75));
+                    g2d.fillRoundRect(x, y, slotSize, slotSize, 4, 4);
+                    g2d.setColor(new Color(85, 90, 105));
+                    g2d.drawRoundRect(x, y, slotSize, slotSize, 4, 4);
                 }
                 
                 if (item != null) {
-                    // 아이템 심볼
                     g2d.setColor(Color.WHITE);
                     g2d.setFont(new Font("Monospaced", Font.BOLD, 16));
-                    g2d.drawString(String.valueOf(item.getSymbol()), x + 12, y + 25);
-                    
-                    // 아이템 타입에 따른 색상
+                    g2d.drawString(String.valueOf(item.getSymbol()), x + 10, y + 24);
                     if (item instanceof com.rogue01.item.Equipment) {
-                        g2d.setColor(Color.YELLOW);
+                        g2d.setColor(new Color(255, 210, 100));
                     } else {
-                        g2d.setColor(Color.GREEN);
+                        g2d.setColor(new Color(120, 200, 120));
                     }
-                    g2d.setFont(new Font("Monospaced", Font.PLAIN, 8));
-                    g2d.drawString(item.getType().getKoreanName(), x, y + slotSize + 12);
+                    g2d.setFont(new Font("Monospaced", Font.PLAIN, 9));
+                    g2d.drawString(item.getType().getKoreanName(), x + 2, y + slotSize + 10);
                 }
+            }
+        }
+        
+        private void drawInventoryItemDetail(Graphics2D g2d, com.rogue01.entity.Player player) {
+            com.rogue01.item.Inventory inventory = player.getInventory();
+            com.rogue01.item.Item item = null;
+            if (selectedInventorySlot >= 0 && selectedInventorySlot < inventory.getSize()) {
+                item = inventory.getItem(selectedInventorySlot);
+            } else if (selectedEquipmentSlot >= 0 && selectedEquipmentSlot < 7) {
+                com.rogue01.item.ItemType[] types = {
+                    com.rogue01.item.ItemType.HELMET, com.rogue01.item.ItemType.ARMOR,
+                    com.rogue01.item.ItemType.BOOTS, com.rogue01.item.ItemType.RING,
+                    com.rogue01.item.ItemType.NECKLACE, com.rogue01.item.ItemType.WEAPON_OFF,
+                    com.rogue01.item.ItemType.WEAPON_MAIN
+                };
+                item = inventory.getEquippedItem(types[selectedEquipmentSlot]);
+            }
+            
+            if (item == null) return;
+            
+            int detailX = 260;
+            int detailY = getHeight() - 95;
+            int detailW = getWidth() - 280;
+            int detailH = 75;
+            
+            g2d.setColor(new Color(45, 50, 65));
+            g2d.fillRoundRect(detailX, detailY, detailW, detailH, 6, 6);
+            g2d.setColor(new Color(100, 105, 120));
+            g2d.drawRoundRect(detailX, detailY, detailW, detailH, 6, 6);
+            
+            g2d.setColor(new Color(255, 245, 200));
+            g2d.setFont(new Font("Monospaced", Font.BOLD, 16));
+            g2d.drawString(item.getName(), detailX + 15, detailY + 25);
+            g2d.setColor(new Color(180, 185, 200));
+            g2d.setFont(new Font("Monospaced", Font.PLAIN, 12));
+            g2d.drawString(item.getDescription(), detailX + 15, detailY + 45);
+            if (item instanceof com.rogue01.item.Equipment eq) {
+                g2d.setColor(new Color(220, 180, 100));
+                g2d.drawString("공격+" + eq.getAttack() + " 방어+" + eq.getDefense() + " | 내구도 " + eq.getDurability() + "/" + eq.getMaxDurability(), detailX + 15, detailY + 62);
             }
         }
         

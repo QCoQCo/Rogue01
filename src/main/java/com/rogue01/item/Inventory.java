@@ -199,10 +199,13 @@ public class Inventory {
     }
     
     /**
-     * 인벤토리 비우기
+     * 인벤토리 비우기 (장비 해제 포함)
      */
     public void clear() {
         items.clear();
+        for (ItemType type : equippedItems.keySet()) {
+            equippedItems.put(type, null);
+        }
     }
     
     /**

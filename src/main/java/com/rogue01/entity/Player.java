@@ -8,6 +8,12 @@ import com.rogue01.map.Map;
 public class Player extends Entity {
     private InputHandler inputHandler;
     private Inventory inventory;
+    
+    // 레벨/스탯 시스템
+    private int level;
+    private int experience;
+    private int baseAttack;   // 레벨에 따른 기본 공격력
+    private int baseDefense;  // 레벨에 따른 기본 방어력
 
     // 이동 방향을 정의하는 enum
     private enum Direction {
@@ -39,6 +45,50 @@ public class Player extends Entity {
         super(x, y, '@', "Player");
         this.inputHandler = new InputHandler();
         this.inventory = new Inventory();
+        this.level = 1;
+        this.experience = 0;
+        applyLevelStats();
+    }
+    
+    /**
+     * 레벨에 따른 기본 스탯 적용
+     */
+    private void applyLevelStats() {
+        this.baseAttack = 5 + level * 2;
+        this.baseDefense = 2 + level;
+        this.maxHealth = 80 + level * 15;
+        if (this.health > this.maxHealth) {
+            this.health = this.maxHealth;
+        }
+    }
+    
+    /**
+     * 경험치 추가 및 레벨업 처리
+     */
+    public void addExperience(int exp) {
+        if (exp <= 0) return;
+        this.experience += exp;
+        
+        while (experience >= getExpToNextLevel()) {
+            experience -= getExpToNextLevel();
+            levelUp();
+        }
+    }
+    
+    /**
+     * 레벨업 시 스탯 상승
+     */
+    private void levelUp() {
+        level++;
+        applyLevelStats();
+        health = maxHealth; // 풀 회복
+    }
+    
+    /**
+     * 다음 레벨까지 필요한 경험치
+     */
+    public int getExpToNextLevel() {
+        return 50 + level * 40;
     }
 
     @Override
@@ -100,16 +150,13 @@ public class Player extends Entity {
      * 플레이어의 총 방어력 계산 (기본 방어력 + 장비 방어력)
      */
     public int getDefense() {
-        int totalDefense = 0;
-
-        // 착용한 장비의 방어력 합산
+        int totalDefense = baseDefense;
         var equippedItems = inventory.getEquippedItems();
         for (var equipment : equippedItems.values()) {
             if (equipment != null) {
                 totalDefense += equipment.getDefense();
             }
         }
-
         return totalDefense;
     }
 
@@ -117,16 +164,29 @@ public class Player extends Entity {
      * 플레이어의 총 공격력 계산 (기본 공격력 + 장비 공격력)
      */
     public int getAttack() {
-        int totalAttack = 10; // 기본 공격력
-
-        // 착용한 장비의 공격력 합산
+        int totalAttack = baseAttack;
         var equippedItems = inventory.getEquippedItems();
         for (var equipment : equippedItems.values()) {
             if (equipment != null) {
                 totalAttack += equipment.getAttack();
             }
         }
-
         return totalAttack;
     }
+    
+    /**
+     * 레벨/경험치 초기화 (재시작 시)
+     */
+    public void resetLevelAndStats() {
+        this.level = 1;
+        this.experience = 0;
+        applyLevelStats();
+        this.health = this.maxHealth;
+    }
+    
+    // 레벨/스탯 getters
+    public int getLevel() { return level; }
+    public int getExperience() { return experience; }
+    public int getBaseAttack() { return baseAttack; }
+    public int getBaseDefense() { return baseDefense; }
 }

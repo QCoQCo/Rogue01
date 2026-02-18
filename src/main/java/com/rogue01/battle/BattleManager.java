@@ -255,10 +255,13 @@ public class BattleManager {
      */
     public void processRewards() {
         if (result == BattleResult.VICTORY) {
-            // 경험치 획득 (나중에 레벨 시스템과 연동)
             int exp = enemy.getExperience();
+            int prevLevel = player.getLevel();
+            player.addExperience(exp);
             addLog("경험치 " + exp + "를 획득했다!");
-            // TODO: 플레이어 경험치 추가
+            if (player.getLevel() > prevLevel) {
+                addLog("레벨 업! Lv." + player.getLevel() + "!");
+            }
         }
     }
     
