@@ -33,4 +33,8 @@ public class InputHandler extends KeyAdapter {
     public void clearKeys() {
         pressedKeys.clear();
     }
+
+    public void consumeKey(int keyCode) {
+        pressedKeys.remove(keyCode);
+    }
 } 
