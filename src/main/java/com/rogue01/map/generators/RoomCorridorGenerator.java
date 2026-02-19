@@ -10,10 +10,18 @@ public class RoomCorridorGenerator implements MapGenerator {
     private List<Room> rooms;
     private int corridorCount;
     private long generationTime;
+    private RandomUtils randomUtils;
     
     public RoomCorridorGenerator() {
         this.rooms = new ArrayList<>();
         this.corridorCount = 0;
+        this.randomUtils = new RandomUtils();
+    }
+    
+    public RoomCorridorGenerator(long seed) {
+        this.rooms = new ArrayList<>();
+        this.corridorCount = 0;
+        this.randomUtils = new RandomUtils(seed);
     }
     
     @Override
@@ -45,8 +53,8 @@ public class RoomCorridorGenerator implements MapGenerator {
         int maxRoomSize = Math.min(12, Math.min(width - 2, height - 2)); // 맵 크기에 맞게 조정
         
         for (int i = 0; i < maxRooms; i++) {
-            int roomWidth = RandomUtils.nextInt(minRoomSize, maxRoomSize);
-            int roomHeight = RandomUtils.nextInt(minRoomSize, maxRoomSize);
+            int roomWidth = randomUtils.nextInt(minRoomSize, maxRoomSize);
+            int roomHeight = randomUtils.nextInt(minRoomSize, maxRoomSize);
             
             // 유효한 범위 계산
             int maxX = Math.max(1, width - roomWidth - 1);
@@ -57,8 +65,8 @@ public class RoomCorridorGenerator implements MapGenerator {
                 break;
             }
             
-            int x = RandomUtils.nextInt(1, maxX);
-            int y = RandomUtils.nextInt(1, maxY);
+            int x = randomUtils.nextInt(1, maxX);
+            int y = randomUtils.nextInt(1, maxY);
             
             Room newRoom = new Room(x, y, roomWidth, roomHeight, Room.RoomType.CENTRAL);
             
@@ -98,7 +106,7 @@ public class RoomCorridorGenerator implements MapGenerator {
             int y2 = room2.getCenterY();
             
             // L자 통로 생성
-            if (RandomUtils.nextBoolean(0.5)) {
+            if (randomUtils.nextBoolean(0.5)) {
                 // 먼저 수평, 그 다음 수직
                 createHorizontalCorridor(tiles, x1, x2, y1);
                 createVerticalCorridor(tiles, y1, y2, x2);
@@ -130,7 +138,7 @@ public class RoomCorridorGenerator implements MapGenerator {
     @Override
     public void setSeed(long seed) {
         this.seed = seed;
-        RandomUtils.setSeed(seed);
+        this.randomUtils = new RandomUtils(seed);
     }
     
     @Override

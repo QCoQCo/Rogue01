@@ -9,9 +9,16 @@ public class BSPGenerator implements MapGenerator {
     private long seed;
     private List<Room> rooms;
     private long generationTime;
+    private RandomUtils randomUtils;
     
     public BSPGenerator() {
         this.rooms = new ArrayList<>();
+        this.randomUtils = new RandomUtils();
+    }
+    
+    public BSPGenerator(long seed) {
+        this.rooms = new ArrayList<>();
+        this.randomUtils = new RandomUtils(seed);
     }
     
     @Override
@@ -47,14 +54,14 @@ public class BSPGenerator implements MapGenerator {
         }
         
         // 수평 또는 수직 분할 결정
-        boolean horizontal = RandomUtils.nextBoolean(0.5);
+        boolean horizontal = randomUtils.nextBoolean(0.5);
         
         if (horizontal && node.height > 8) {
             // 수평 분할 - 유효한 범위 확인
             int minSplit = node.y + 4;
             int maxSplit = node.y + node.height - 4;
             if (maxSplit > minSplit) {
-                int splitY = RandomUtils.nextInt(minSplit, maxSplit);
+                int splitY = randomUtils.nextInt(minSplit, maxSplit);
                 node.left = new BSPNode(node.x, node.y, node.width, splitY - node.y);
                 node.right = new BSPNode(node.x, splitY, node.width, node.y + node.height - splitY);
             }
@@ -63,7 +70,7 @@ public class BSPGenerator implements MapGenerator {
             int minSplit = node.x + 4;
             int maxSplit = node.x + node.width - 4;
             if (maxSplit > minSplit) {
-                int splitX = RandomUtils.nextInt(minSplit, maxSplit);
+                int splitX = randomUtils.nextInt(minSplit, maxSplit);
                 node.left = new BSPNode(node.x, node.y, splitX - node.x, node.height);
                 node.right = new BSPNode(splitX, node.y, node.x + node.width - splitX, node.height);
             }
@@ -81,15 +88,15 @@ public class BSPGenerator implements MapGenerator {
             int maxRoomHeight = Math.min(8, node.height - 2);
             
             if (maxRoomWidth >= 4 && maxRoomHeight >= 4) {
-                int roomWidth = RandomUtils.nextInt(4, maxRoomWidth);
-                int roomHeight = RandomUtils.nextInt(4, maxRoomHeight);
+                int roomWidth = randomUtils.nextInt(4, maxRoomWidth);
+                int roomHeight = randomUtils.nextInt(4, maxRoomHeight);
                 
                 int maxRoomX = node.x + node.width - roomWidth;
                 int maxRoomY = node.y + node.height - roomHeight;
                 
                 if (maxRoomX >= node.x && maxRoomY >= node.y) {
-                    int roomX = RandomUtils.nextInt(node.x, maxRoomX);
-                    int roomY = RandomUtils.nextInt(node.y, maxRoomY);
+                    int roomX = randomUtils.nextInt(node.x, maxRoomX);
+                    int roomY = randomUtils.nextInt(node.y, maxRoomY);
                     
                     Room room = new Room(roomX, roomY, roomWidth, roomHeight, Room.RoomType.OUTER);
                     createRoom(tiles, room);
@@ -114,23 +121,31 @@ public class BSPGenerator implements MapGenerator {
     }
     
     private void connectRooms(Tile[][] tiles) {
-        for (int i = 0; i < rooms.size() - 1; i++) {
-            Room room1 = rooms.get(i);
-            Room room2 = rooms.get(i + 1);
-            
-            int x1 = room1.getCenterX();
-            int y1 = room1.getCenterY();
-            int x2 = room2.getCenterX();
-            int y2 = room2.getCenterY();
-            
-            // L자 통로 생성
-            if (RandomUtils.nextBoolean(0.5)) {
-                createHorizontalCorridor(tiles, x1, x2, y1);
-                createVerticalCorridor(tiles, y1, y2, x2);
-            } else {
-                createVerticalCorridor(tiles, y1, y2, x1);
-                createHorizontalCorridor(tiles, x1, x2, y2);
-            }
+        if (rooms.size() < 2) return;
+        
+        // 간단한 연결: 첫 번째 방을 기준으로 다른 방들과 연결
+        Room baseRoom = rooms.get(0);
+        for (int i = 1; i < rooms.size(); i++) {
+            Room targetRoom = rooms.get(i);
+            connectTwoRooms(tiles, baseRoom, targetRoom);
+        }
+    }
+    
+    private void connectTwoRooms(Tile[][] tiles, Room room1, Room room2) {
+        int x1 = room1.getCenterX();
+        int y1 = room1.getCenterY();
+        int x2 = room2.getCenterX();
+        int y2 = room2.getCenterY();
+        
+        // L자 통로 생성
+        if (randomUtils.nextBoolean(0.5)) {
+            // 먼저 수평, 그 다음 수직
+            createHorizontalCorridor(tiles, x1, x2, y1);
+            createVerticalCorridor(tiles, y1, y2, x2);
+        } else {
+            // 먼저 수직, 그 다음 수평
+            createVerticalCorridor(tiles, y1, y2, x1);
+            createHorizontalCorridor(tiles, x1, x2, y2);
         }
     }
     
@@ -153,7 +168,7 @@ public class BSPGenerator implements MapGenerator {
     @Override
     public void setSeed(long seed) {
         this.seed = seed;
-        RandomUtils.setSeed(seed);
+        this.randomUtils = new RandomUtils(seed);
     }
     
     @Override
@@ -161,14 +176,14 @@ public class BSPGenerator implements MapGenerator {
         int playerStartX = rooms.isEmpty() ? 1 : rooms.get(0).getCenterX();
         int playerStartY = rooms.isEmpty() ? 1 : rooms.get(0).getCenterY();
         
-        return new MapGenerationInfo(rooms.size(), rooms.size() - 1, playerStartX, playerStartY, rooms, generationTime);
+        return new MapGenerationInfo(rooms.size(), 0, playerStartX, playerStartY, rooms, generationTime);
     }
     
+    @Override
     public List<Room> getRooms() {
         return new ArrayList<>(rooms);
     }
     
-    // BSP 노드 클래스
     private static class BSPNode {
         int x, y, width, height;
         BSPNode left, right;
