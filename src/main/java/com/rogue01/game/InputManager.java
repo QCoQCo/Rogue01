@@ -116,13 +116,24 @@ public class InputManager {
     private void handleInventoryInput() {
         if (inputHandler.isKeyPressed(KeyEvent.VK_I) ||
                 inputHandler.isKeyPressed(KeyEvent.VK_ESCAPE)) {
-            // 게임으로 돌아가기 신호
             if (game != null) {
+                if (game.closeItemDetailPopupIfActive()) {
+                    inputHandler.clearKeys();
+                    return;
+                }
                 game.setGameState(GameState.PLAYING);
             }
             inputHandler.clearKeys();
+        } else if (inputHandler.isKeyPressed(KeyEvent.VK_U)) {
+            // U: 선택한 소비 아이템 사용
+            if (game != null) {
+                int slot = game.getGameWindow().getSelectedInventorySlot();
+                if (game.useConsumableAtSlot(slot)) {
+                    inputHandler.consumeKey(KeyEvent.VK_U);
+                }
+            }
+            inputHandler.clearKeys();
         } else {
-            // 숫자 키로 인벤토리 아이템 선택
             handleInventorySelection();
         }
     }
@@ -190,13 +201,13 @@ public class InputManager {
     }
 
     /**
-     * 특정 인덱스의 인벤토리 아이템 선택 처리
+     * 특정 인덱스의 인벤토리 아이템 선택 처리 (팝업 표시)
      */
     private void handleInventoryItemSelection(int index) {
-        if (index < player.getInventory().getSize()) {
+        if (game != null && index < player.getInventory().getSize()) {
             var item = player.getInventory().getItem(index);
-            if (item != null && item instanceof com.rogue01.item.Equipment) {
-                player.getInventory().equipItem(item);
+            if (item != null) {
+                game.getGameWindow().openItemDetailPopupForSlot(index);
             }
         }
     }

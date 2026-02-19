@@ -7,10 +7,15 @@ public class ItemFactory {
     
     /**
      * 적 처치 시 랜덤 아이템 드롭 (50% 확률)
+     * 장비 70%, 소비아이템 30%
      */
     public static Item createRandomDrop() {
         if (RANDOM.nextDouble() > 0.5) {
             return null;
+        }
+        
+        if (RANDOM.nextDouble() < 0.3) {
+            return createRandomConsumable();
         }
         
         int roll = RANDOM.nextInt(7);
@@ -24,6 +29,21 @@ public class ItemFactory {
             case 6 -> createNecklace();
             default -> createSword();
         };
+    }
+    
+    /**
+     * 랜덤 소비 아이템 생성
+     */
+    public static Consumable createRandomConsumable() {
+        return RANDOM.nextBoolean() ? createHealthPotion() : createGreaterHealthPotion();
+    }
+    
+    public static HealthPotion createHealthPotion() {
+        return new HealthPotion("체력 포션", "HP를 30 회복합니다.", 50, 'P', 30);
+    }
+    
+    public static HealthPotion createGreaterHealthPotion() {
+        return new HealthPotion("상급 체력 포션", "HP를 80 회복합니다.", 120, 'Q', 80);
     }
     
     public static Weapon createSword() {

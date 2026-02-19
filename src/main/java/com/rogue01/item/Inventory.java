@@ -121,7 +121,7 @@ public class Inventory {
     }
     
     /**
-     * 장비 해제
+     * 장비 해제 (인벤토리로 이동)
      */
     public boolean unequipItem(ItemType type) {
         if (!isEquipmentType(type)) {
@@ -130,6 +130,21 @@ public class Inventory {
         
         Equipment equipped = equippedItems.get(type);
         if (equipped != null && addItem(equipped)) {
+            equippedItems.put(type, null);
+            return true;
+        }
+        return false;
+    }
+    
+    /**
+     * 착용 장비 버리기 (인벤토리로 넣지 않고 제거)
+     */
+    public boolean dropEquippedItem(ItemType type) {
+        if (!isEquipmentType(type)) {
+            return false;
+        }
+        Equipment equipped = equippedItems.get(type);
+        if (equipped != null) {
             equippedItems.put(type, null);
             return true;
         }
@@ -206,6 +221,47 @@ public class Inventory {
         for (ItemType type : equippedItems.keySet()) {
             equippedItems.put(type, null);
         }
+    }
+    
+    /**
+     * 소비 아이템 목록 가져오기 (전투/필드에서 사용용)
+     */
+    public List<Item> getConsumables() {
+        List<Item> result = new ArrayList<>();
+        for (Item item : items) {
+            if (item.getType() == ItemType.CONSUMABLE) {
+                result.add(item);
+            }
+        }
+        return result;
+    }
+    
+    /**
+     * 아이템 사용 (소비 아이템만, 사용 후 제거)
+     * @return true if used and removed, false otherwise
+     */
+    public boolean useItem(Item item, com.rogue01.entity.Player player) {
+        if (item == null || item.getType() != ItemType.CONSUMABLE) {
+            return false;
+        }
+        if (!items.contains(item)) {
+            return false;
+        }
+        item.use(player);
+        items.remove(item);
+        return true;
+    }
+    
+    /**
+     * 인덱스로 소비 아이템 사용 (소비 아이템 목록 기준)
+     */
+    public boolean useConsumableAt(int consumableListIndex, com.rogue01.entity.Player player) {
+        List<Item> consumables = getConsumables();
+        if (consumableListIndex < 0 || consumableListIndex >= consumables.size()) {
+            return false;
+        }
+        Item item = consumables.get(consumableListIndex);
+        return useItem(item, player);
     }
     
     /**

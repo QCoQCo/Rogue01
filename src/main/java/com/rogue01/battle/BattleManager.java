@@ -2,6 +2,8 @@ package com.rogue01.battle;
 
 import com.rogue01.entity.Player;
 import com.rogue01.entity.Enemy;
+import com.rogue01.item.Consumable;
+import com.rogue01.item.Item;
 import com.rogue01.map.utils.RandomUtils;
 import java.util.ArrayList;
 import java.util.List;
@@ -12,6 +14,8 @@ import java.util.List;
 public class BattleManager {
     private Player player;
     private Enemy enemy;
+    private int dropX;
+    private int dropY;
     private BattleState battleState;
     private RandomUtils randomUtils;
     private List<String> battleLog;
@@ -43,9 +47,11 @@ public class BattleManager {
         ESCAPE
     }
     
-    public BattleManager(Player player, Enemy enemy) {
+    public BattleManager(Player player, Enemy enemy, int dropX, int dropY) {
         this.player = player;
         this.enemy = enemy;
+        this.dropX = dropX;
+        this.dropY = dropY;
         this.randomUtils = new RandomUtils();
         this.battleLog = new ArrayList<>();
         this.turnNumber = 0;
@@ -110,8 +116,7 @@ public class BattleManager {
                 executePlayerDefend();
                 break;
             case ITEM:
-                // 아이템 사용 (나중에 구현)
-                addLog("아이템을 사용했습니다.");
+                // 아이템은 BattleScreen에서 소비아이템 선택 후 executeUseConsumable 호출
                 break;
             case ESCAPE:
                 executeEscape();
@@ -240,6 +245,46 @@ public class BattleManager {
     }
     
     /**
+     * 소비 아이템 사용 (전투 중)
+     * @param consumableListIndex getConsumables() 목록 기준 인덱스
+     * @return true if used, false if failed (취소 또는 없음)
+     */
+    public boolean executeUseConsumable(int consumableListIndex) {
+        if (battleState != BattleState.PLAYER_TURN || battleEnded) {
+            return false;
+        }
+        var consumables = player.getInventory().getConsumables();
+        if (consumableListIndex < 0 || consumableListIndex >= consumables.size()) {
+            return false;
+        }
+        Item item = consumables.get(consumableListIndex);
+        if (!(item instanceof Consumable)) {
+            return false;
+        }
+        int hpBefore = player.getHealth();
+        boolean used = player.getInventory().useItem(item, player);
+        if (!used) {
+            return false;
+        }
+        int healed = player.getHealth() - hpBefore;
+        if (healed > 0) {
+            addLog(player.getName() + "는(은) " + item.getName() + "을(를) 사용했다! HP +" + healed);
+        } else {
+            addLog(player.getName() + "는(은) " + item.getName() + "을(를) 사용했다!");
+        }
+        battleState = BattleState.ENEMY_TURN;
+        turnNumber++;
+        return true;
+    }
+    
+    /**
+     * 소비 아이템 목록 (전투 중 사용 가능)
+     */
+    public List<Item> getConsumables() {
+        return player.getInventory().getConsumables();
+    }
+    
+    /**
      * 전투 로그 추가
      */
     public void addLog(String message) {
@@ -273,6 +318,9 @@ public class BattleManager {
     public Enemy getEnemy() {
         return enemy;
     }
+    
+    public int getDropX() { return dropX; }
+    public int getDropY() { return dropY; }
     
     public BattleState getBattleState() {
         return battleState;

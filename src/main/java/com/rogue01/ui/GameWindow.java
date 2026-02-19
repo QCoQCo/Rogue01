@@ -13,9 +13,14 @@ public class GameWindow extends JFrame {
     private GamePanel gamePanel;
     private InputHandler inputHandler;
     private Game currentGame; // 현재 게임 인스턴스 참조
-    private int selectedInventorySlot = -1; // 선택된 인벤토리 슬롯
-    private int selectedEquipmentSlot = -1; // 선택된 장비 슬롯
-    private BattleScreen battleScreen; // 전투 화면
+    private int selectedInventorySlot = -1;
+    private int selectedEquipmentSlot = -1;
+    private BattleScreen battleScreen;
+    
+    // 아이템 상세 팝업 (클릭 시 표시)
+    private boolean itemDetailPopupActive;
+    private int itemPopupSource; // 0=inventory, 1=equipment
+    private int itemPopupSlotIndex;
     
     public GameWindow() {
         setTitle("Rogue01");
@@ -66,12 +71,34 @@ public class GameWindow extends JFrame {
     
     public Game getGame() { return currentGame; }
     
+    public int getSelectedInventorySlot() { return selectedInventorySlot; }
+    
+    public boolean closeItemDetailPopupIfActive() {
+        if (itemDetailPopupActive) {
+            itemDetailPopupActive = false;
+            selectedInventorySlot = -1;
+            selectedEquipmentSlot = -1;
+            return true;
+        }
+        return false;
+    }
+    
+    public void openItemDetailPopupForSlot(int inventorySlotIndex) {
+        itemDetailPopupActive = true;
+        itemPopupSource = 0;
+        itemPopupSlotIndex = inventorySlotIndex;
+        selectedInventorySlot = inventorySlotIndex;
+        selectedEquipmentSlot = -1;
+    }
+    
     private void handleMouseClick(int x, int y) {
         if (currentGame != null && currentGame.getGameState() == com.rogue01.game.GameState.INVENTORY) {
-            // 장비 슬롯 클릭 처리
-            handleEquipmentSlotClick(x, y);
-            // 인벤토리 슬롯 클릭 처리
-            handleInventorySlotClick(x, y);
+            if (itemDetailPopupActive) {
+                handleItemPopupButtonClick(x, y);
+            } else {
+                handleEquipmentSlotClick(x, y);
+                handleInventorySlotClick(x, y);
+            }
         }
     }
     
@@ -86,27 +113,13 @@ public class GameWindow extends JFrame {
             int slotY = startY;
             
             if (x >= slotX && x <= slotX + slotSize && y >= slotY && y <= slotY + slotSize) {
-                selectedEquipmentSlot = i;
-                selectedInventorySlot = -1;
-                
-                // 선택된 장비 해제
-                if (currentGame != null) {
-                    com.rogue01.entity.Player player = currentGame.getPlayer();
-                    com.rogue01.item.Inventory inventory = player.getInventory();
-                    
-                    com.rogue01.item.ItemType[] slotTypes = {
-                        com.rogue01.item.ItemType.HELMET,
-                        com.rogue01.item.ItemType.ARMOR,
-                        com.rogue01.item.ItemType.BOOTS,
-                        com.rogue01.item.ItemType.RING,
-                        com.rogue01.item.ItemType.NECKLACE,
-                        com.rogue01.item.ItemType.WEAPON_OFF,
-                        com.rogue01.item.ItemType.WEAPON_MAIN
-                    };
-                    
-                    if (i < slotTypes.length) {
-                        inventory.unequipItem(slotTypes[i]);
-                    }
+                com.rogue01.item.Equipment equipped = currentGame.getPlayer().getInventory().getEquippedItem(getSlotType(i));
+                if (equipped != null) {
+                    selectedEquipmentSlot = i;
+                    selectedInventorySlot = -1;
+                    itemDetailPopupActive = true;
+                    itemPopupSource = 1;
+                    itemPopupSlotIndex = i;
                 }
                 break;
             }
@@ -120,27 +133,93 @@ public class GameWindow extends JFrame {
         int slotSize = 38;
         int spacing = 42;
         
-        for (int i = 0; i < 50; i++) {
+        com.rogue01.item.Inventory inventory = currentGame.getPlayer().getInventory();
+        for (int i = 0; i < inventory.getSize(); i++) {
             int row = i / itemsPerRow;
             int col = i % itemsPerRow;
             int slotX = startX + (col * spacing);
             int slotY = startY + (row * spacing);
             
             if (x >= slotX && x <= slotX + slotSize && y >= slotY && y <= slotY + slotSize) {
-                selectedInventorySlot = i;
-                selectedEquipmentSlot = -1;
-                
-                // 아이템 착용 시도
-                if (currentGame != null) {
-                    com.rogue01.entity.Player player = currentGame.getPlayer();
-                    com.rogue01.item.Inventory inventory = player.getInventory();
-                    com.rogue01.item.Item item = inventory.getItem(i);
-                    
-                    if (item != null && item instanceof com.rogue01.item.Equipment) {
-                        inventory.equipItem(item);
-                    }
+                com.rogue01.item.Item item = inventory.getItem(i);
+                if (item != null) {
+                    selectedInventorySlot = i;
+                    selectedEquipmentSlot = -1;
+                    itemDetailPopupActive = true;
+                    itemPopupSource = 0;
+                    itemPopupSlotIndex = i;
                 }
                 break;
+            }
+        }
+    }
+    
+    private com.rogue01.item.ItemType getSlotType(int slotIndex) {
+        com.rogue01.item.ItemType[] types = {
+            com.rogue01.item.ItemType.HELMET, com.rogue01.item.ItemType.ARMOR,
+            com.rogue01.item.ItemType.BOOTS, com.rogue01.item.ItemType.RING,
+            com.rogue01.item.ItemType.NECKLACE, com.rogue01.item.ItemType.WEAPON_OFF,
+            com.rogue01.item.ItemType.WEAPON_MAIN
+        };
+        return types[slotIndex];
+    }
+    
+    private void handleItemPopupButtonClick(int x, int y) {
+        com.rogue01.entity.Player player = currentGame.getPlayer();
+        com.rogue01.item.Inventory inventory = player.getInventory();
+        com.rogue01.item.Item item = itemPopupSource == 0 
+            ? inventory.getItem(itemPopupSlotIndex) 
+            : inventory.getEquippedItem(getSlotType(itemPopupSlotIndex));
+        if (item == null) {
+            itemDetailPopupActive = false;
+            return;
+        }
+        
+        int panelW = gamePanel.getWidth();
+        int panelH = gamePanel.getHeight();
+        int popupW = 420;
+        int popupH = item instanceof com.rogue01.item.Consumable ? 200 : 260;
+        int popupX = (panelW - popupW) / 2;
+        int popupY = (panelH - popupH) / 2;
+        int btnY = popupY + popupH - 50;
+        int btnH = 36;
+        int btnW = 100;
+        int btnSpacing = 15;
+        int totalBtnW = 3 * btnW + 2 * btnSpacing;
+        int startBtnX = popupX + (popupW - totalBtnW) / 2;
+        
+        // 버튼 순서: [취소] [버리기] [착용/교체/해제/사용]
+        int cancelX = startBtnX;
+        int dropX = startBtnX + btnW + btnSpacing;
+        int actionX = startBtnX + 2 * (btnW + btnSpacing);
+        
+        if (y >= btnY && y <= btnY + btnH) {
+            if (x >= cancelX && x <= cancelX + btnW) {
+                itemDetailPopupActive = false;
+                selectedInventorySlot = -1;
+                selectedEquipmentSlot = -1;
+            } else if (x >= dropX && x <= dropX + btnW) {
+                if (itemPopupSource == 0) {
+                    inventory.removeItem(item);
+                } else {
+                    inventory.dropEquippedItem(getSlotType(itemPopupSlotIndex));
+                }
+                itemDetailPopupActive = false;
+                selectedInventorySlot = -1;
+                selectedEquipmentSlot = -1;
+            } else if (x >= actionX && x <= actionX + btnW) {
+                if (item instanceof com.rogue01.item.Consumable) {
+                    inventory.useItem(item, player);
+                } else if (item instanceof com.rogue01.item.Equipment) {
+                    if (itemPopupSource == 0) {
+                        inventory.equipItem(item);
+                    } else {
+                        inventory.unequipItem(getSlotType(itemPopupSlotIndex));
+                    }
+                }
+                itemDetailPopupActive = false;
+                selectedInventorySlot = -1;
+                selectedEquipmentSlot = -1;
             }
         }
     }
@@ -376,12 +455,16 @@ public class GameWindow extends JFrame {
             
             drawEquipmentSlots(g2d);
             drawInventoryItems(g2d);
-            drawInventoryItemDetail(g2d, player);
+            if (itemDetailPopupActive) {
+                drawItemDetailPopup(g2d, player);
+            } else {
+                drawInventoryItemDetail(g2d, player);
+            }
             
             // 조작법
             g2d.setColor(new Color(180, 180, 180));
             g2d.setFont(new Font("Monospaced", Font.PLAIN, 12));
-            g2d.drawString("I/ESC: 닫기 | 클릭: 장비 착용/해제 | 1-7: 빠른 선택", getWidth()/2 - 150, getHeight() - 15);
+            g2d.drawString("I/ESC: 닫기 | 클릭: 아이템 상세 | 1-7: 아이템 선택 | U: 소비아이템 사용", getWidth()/2 - 200, getHeight() - 15);
         }
         
         private void drawInventoryStatsPanel(Graphics2D g2d, com.rogue01.entity.Player player) {
@@ -574,6 +657,94 @@ public class GameWindow extends JFrame {
             if (item instanceof com.rogue01.item.Equipment eq) {
                 g2d.setColor(new Color(220, 180, 100));
                 g2d.drawString("공격+" + eq.getAttack() + " 방어+" + eq.getDefense() + " | 내구도 " + eq.getDurability() + "/" + eq.getMaxDurability(), detailX + 15, detailY + 62);
+            } else if (item instanceof com.rogue01.item.HealthPotion hp) {
+                g2d.setColor(new Color(120, 200, 120));
+                g2d.drawString("HP +" + hp.getHealAmount() + " 회복 | U키로 사용", detailX + 15, detailY + 62);
+            }
+        }
+        
+        private void drawItemDetailPopup(Graphics2D g2d, com.rogue01.entity.Player player) {
+            com.rogue01.item.Inventory inventory = player.getInventory();
+            com.rogue01.item.Item item = itemPopupSource == 0 
+                ? inventory.getItem(itemPopupSlotIndex) 
+                : inventory.getEquippedItem(getSlotType(itemPopupSlotIndex));
+            if (item == null) {
+                return;
+            }
+            
+            int popupW = 420;
+            int popupH = item instanceof com.rogue01.item.Consumable ? 200 : 260;
+            int popupX = (getWidth() - popupW) / 2;
+            int popupY = (getHeight() - popupH) / 2;
+            
+            // 배경 어둡게
+            g2d.setColor(new Color(0, 0, 0, 150));
+            g2d.fillRect(0, 0, getWidth(), getHeight());
+            
+            // 팝업 배경
+            g2d.setColor(new Color(45, 50, 65));
+            g2d.fillRoundRect(popupX, popupY, popupW, popupH, 12, 12);
+            g2d.setColor(new Color(100, 110, 130));
+            g2d.drawRoundRect(popupX, popupY, popupW, popupH, 12, 12);
+            
+            int contentX = popupX + 25;
+            int contentY = popupY + 30;
+            
+            g2d.setColor(new Color(255, 245, 200));
+            g2d.setFont(new Font("Monospaced", Font.BOLD, 18));
+            g2d.drawString(item.getName(), contentX, contentY);
+            g2d.setColor(new Color(180, 185, 200));
+            g2d.setFont(new Font("Monospaced", Font.PLAIN, 13));
+            g2d.drawString(item.getDescription(), contentX, contentY + 25);
+            
+            if (item instanceof com.rogue01.item.Consumable) {
+                if (item instanceof com.rogue01.item.HealthPotion hp) {
+                    g2d.setColor(new Color(120, 200, 120));
+                    g2d.drawString("효과: HP " + hp.getHealAmount() + " 회복", contentX, contentY + 55);
+                }
+            } else if (item instanceof com.rogue01.item.Equipment eq) {
+                g2d.setColor(new Color(220, 180, 100));
+                g2d.drawString("공격+" + eq.getAttack() + " 방어+" + eq.getDefense() + " | 내구도 " + eq.getDurability() + "/" + eq.getMaxDurability(), contentX, contentY + 55);
+                
+                com.rogue01.item.Equipment equipped = inventory.getEquippedItem(eq.getType());
+                if (itemPopupSource == 0 && equipped != null && equipped != eq) {
+                    g2d.setColor(new Color(255, 255, 255));
+                    g2d.setFont(new Font("Monospaced", Font.BOLD, 14));
+                    g2d.drawString("현재 착용 중:", contentX, contentY + 85);
+                    g2d.setFont(new Font("Monospaced", Font.PLAIN, 13));
+                    g2d.setColor(new Color(200, 200, 200));
+                    g2d.drawString(equipped.getName() + " (공격+" + equipped.getAttack() + " 방어+" + equipped.getDefense() + ")", contentX, contentY + 105);
+                    g2d.setColor(new Color(150, 255, 150));
+                    g2d.drawString("→ 교체 시: 공격 " + (eq.getAttack() - equipped.getAttack() >= 0 ? "+" : "") + (eq.getAttack() - equipped.getAttack()) + 
+                        ", 방어 " + (eq.getDefense() - equipped.getDefense() >= 0 ? "+" : "") + (eq.getDefense() - equipped.getDefense()), contentX, contentY + 125);
+                }
+            }
+            
+            int btnY = popupY + popupH - 50;
+            int btnH = 36;
+            int btnW = 100;
+            int btnSpacing = 15;
+            int totalBtnW = 3 * btnW + 2 * btnSpacing;
+            int startBtnX = popupX + (popupW - totalBtnW) / 2;
+            
+            String[] btnLabels = {"취소", "버리기", ""};
+            if (item instanceof com.rogue01.item.Consumable) {
+                btnLabels[2] = "사용";
+            } else if (itemPopupSource == 1) {
+                btnLabels[2] = "해제";
+            } else if (item instanceof com.rogue01.item.Equipment eq && inventory.getEquippedItem(eq.getType()) != null) {
+                btnLabels[2] = "교체";
+            } else {
+                btnLabels[2] = "착용";
+            }
+            
+            for (int i = 0; i < 3; i++) {
+                int bx = startBtnX + i * (btnW + btnSpacing);
+                g2d.setColor(i == 0 ? new Color(100, 105, 120) : i == 1 ? new Color(150, 80, 80) : new Color(80, 120, 80));
+                g2d.fillRoundRect(bx, btnY, btnW, btnH, 6, 6);
+                g2d.setColor(Color.WHITE);
+                g2d.setFont(new Font("Monospaced", Font.PLAIN, 14));
+                g2d.drawString(btnLabels[i], bx + (btnW - g2d.getFontMetrics().stringWidth(btnLabels[i])) / 2, btnY + btnH / 2 + 5);
             }
         }
         

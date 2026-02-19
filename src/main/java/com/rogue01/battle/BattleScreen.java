@@ -2,8 +2,11 @@ package com.rogue01.battle;
 
 import com.rogue01.entity.Player;
 import com.rogue01.entity.Enemy;
+import com.rogue01.item.HealthPotion;
+import com.rogue01.item.Item;
 import java.awt.*;
 import java.awt.event.KeyEvent;
+import java.util.List;
 
 /**
  * 전투 화면 UI 클래스 (JRPG 스타일)
@@ -12,6 +15,8 @@ public class BattleScreen {
     private BattleManager battleManager;
     private int selectedActionIndex;
     private String[] actionMenu = {"공격", "방어", "아이템", "도망"};
+    private boolean itemSubMenuActive;
+    private int selectedConsumableIndex;
     
     public BattleScreen(BattleManager battleManager) {
         this.battleManager = battleManager;
@@ -32,8 +37,12 @@ public class BattleScreen {
         // 적 정보 패널 (오른쪽 상단)
         drawEnemyInfo(g2d, width, height);
         
-        // 액션 메뉴 (하단 중앙)
-        drawActionMenu(g2d, width, height);
+        // 액션 메뉴 또는 아이템 서브메뉴
+        if (itemSubMenuActive) {
+            drawItemSubMenu(g2d, width, height);
+        } else {
+            drawActionMenu(g2d, width, height);
+        }
         
         // 전투 로그 (상단)
         drawBattleLog(g2d, width, height);
@@ -204,6 +213,56 @@ public class BattleScreen {
     }
     
     /**
+     * 아이템 서브메뉴 그리기 (소비 아이템 선택)
+     */
+    private void drawItemSubMenu(Graphics2D g2d, int width, int height) {
+        List<Item> consumables = battleManager.getConsumables();
+        
+        int menuX = width / 2 - 220;
+        int menuY = height - 150;
+        int menuWidth = 440;
+        int menuHeight = 120;
+        
+        g2d.setColor(new Color(0, 0, 0, 230));
+        g2d.fillRect(menuX, menuY, menuWidth, menuHeight);
+        g2d.setColor(Color.YELLOW);
+        g2d.drawRect(menuX, menuY, menuWidth, menuHeight);
+        
+        g2d.setFont(new Font("Monospaced", Font.BOLD, 14));
+        g2d.setColor(Color.YELLOW);
+        g2d.drawString("소비 아이템 선택 (ESC: 취소)", menuX + 15, menuY + 25);
+        
+        if (consumables.isEmpty()) {
+            g2d.setFont(new Font("Monospaced", Font.PLAIN, 14));
+            g2d.setColor(Color.GRAY);
+            g2d.drawString("사용 가능한 소비 아이템이 없습니다.", menuX + 15, menuY + 55);
+        } else {
+            g2d.setFont(new Font("Monospaced", Font.PLAIN, 14));
+            int startY = menuY + 50;
+            int lineHeight = 28;
+            for (int i = 0; i < consumables.size(); i++) {
+                Item item = consumables.get(i);
+                String line = (i + 1) + ". " + item.getName();
+                if (item instanceof HealthPotion hp) {
+                    line += " (HP +" + hp.getHealAmount() + ")";
+                }
+                if (i == selectedConsumableIndex) {
+                    g2d.setColor(Color.YELLOW);
+                    g2d.fillRect(menuX + 10, startY + i * lineHeight - 18, menuWidth - 20, 22);
+                    g2d.setColor(Color.BLACK);
+                } else {
+                    g2d.setColor(Color.WHITE);
+                }
+                g2d.drawString(line, menuX + 15, startY + i * lineHeight);
+            }
+        }
+        
+        g2d.setFont(new Font("Monospaced", Font.PLAIN, 11));
+        g2d.setColor(Color.LIGHT_GRAY);
+        g2d.drawString("↑↓: 선택 | ENTER: 사용 | ESC: 취소", menuX + 10, menuY + menuHeight - 8);
+    }
+    
+    /**
      * 전투 로그 그리기
      */
     private void drawBattleLog(Graphics2D g2d, int width, int height) {
@@ -284,12 +343,16 @@ public class BattleScreen {
      */
     public void handleInput(KeyEvent e) {
         if (battleManager.isBattleEnded()) {
-            // 전투 종료 후 아무 키나 눌러 종료
             return;
         }
         
         if (!battleManager.isPlayerTurn()) {
-            return; // 적 턴에는 입력 무시
+            return;
+        }
+        
+        if (itemSubMenuActive) {
+            handleItemSubMenuInput(e);
+            return;
         }
         
         switch (e.getKeyCode()) {
@@ -313,7 +376,52 @@ public class BattleScreen {
                 break;
             case KeyEvent.VK_ENTER:
             case KeyEvent.VK_SPACE:
-                executeSelectedAction();
+                if (selectedActionIndex == 2) {
+                    // 아이템: 서브메뉴 열기
+                    List<Item> consumables = battleManager.getConsumables();
+                    if (consumables.isEmpty()) {
+                        // 로그는 BattleManager에서? 아니면 그냥 서브메뉴만 빈 상태로
+                        itemSubMenuActive = true;
+                        selectedConsumableIndex = 0;
+                    } else {
+                        itemSubMenuActive = true;
+                        selectedConsumableIndex = 0;
+                    }
+                } else {
+                    executeSelectedAction();
+                }
+                e.consume();
+                break;
+        }
+    }
+    
+    private void handleItemSubMenuInput(KeyEvent e) {
+        List<Item> consumables = battleManager.getConsumables();
+        
+        switch (e.getKeyCode()) {
+            case KeyEvent.VK_ESCAPE:
+                itemSubMenuActive = false;
+                e.consume();
+                break;
+            case KeyEvent.VK_UP:
+            case KeyEvent.VK_W:
+                if (!consumables.isEmpty()) {
+                    selectedConsumableIndex = (selectedConsumableIndex - 1 + consumables.size()) % consumables.size();
+                }
+                e.consume();
+                break;
+            case KeyEvent.VK_DOWN:
+            case KeyEvent.VK_S:
+                if (!consumables.isEmpty()) {
+                    selectedConsumableIndex = (selectedConsumableIndex + 1) % consumables.size();
+                }
+                e.consume();
+                break;
+            case KeyEvent.VK_ENTER:
+            case KeyEvent.VK_SPACE:
+                if (!consumables.isEmpty() && battleManager.executeUseConsumable(selectedConsumableIndex)) {
+                    itemSubMenuActive = false;
+                }
                 e.consume();
                 break;
         }

@@ -196,7 +196,7 @@ public class Game {
             // 목표 타일에 적이 있으면 전투 시작
             Enemy enemyAtTarget = getEnemyAt(targetX, targetY);
             if (enemyAtTarget != null) {
-                startBattle(enemyAtTarget);
+                startBattle(enemyAtTarget, targetX, targetY);
                 return true; // 행동함 (전투 시작)
             }
             
@@ -216,11 +216,8 @@ public class Game {
      * 적 턴 처리 - 모든 적이 한 칸씩 이동
      */
     private void processEnemyTurn() {
-        updateEnemies();
+        updateEnemiesWithCollisionCheck();
         removeDeadEnemies();
-        
-        // 적이 플레이어 타일로 이동했으면 전투 시작
-        checkEnemyCollision();
     }
     
     /**
@@ -247,10 +244,8 @@ public class Game {
                 BattleManager.BattleResult result = battleManager.getResult();
                 
                 if (result == BattleManager.BattleResult.VICTORY) {
-                    // 보상 처리
                     battleManager.processRewards();
-                    // 아이템 드롭 (적 위치에)
-                    dropItemFromEnemy(battleManager.getEnemy());
+                    dropItemFromEnemy(battleManager.getEnemy(), battleManager.getDropX(), battleManager.getDropY());
                     // 전투 중인 적 제거
                     enemies.remove(battleManager.getEnemy());
                     killCount++;
@@ -273,33 +268,50 @@ public class Game {
     }
     
     /**
-     * 적과의 충돌 체크 (전투 시작)
+     * 적 업데이트 및 충돌 체크 (적이 플레이어 타일로 이동 시 전투)
+     * 이동 전 위치를 저장하여 아이템 드롭 시 사용
      */
-    private void checkEnemyCollision() {
+    private void updateEnemiesWithCollisionCheck() {
         if (gameState == GameState.BATTLE) {
-            return; // 이미 전투 중이면 체크하지 않음
+            return;
         }
         
         for (Enemy enemy : enemies) {
-            if (enemy.isDead()) {
-                continue;
-            }
+            if (enemy.isDead()) continue;
             
-            // 플레이어와 적이 같은 위치에 있으면 전투 시작
+            int dropX = enemy.getX();
+            int dropY = enemy.getY();
+            enemy.update(map, player, enemies);
+            
             if (player.getX() == enemy.getX() && player.getY() == enemy.getY()) {
-                startBattle(enemy);
+                startBattle(enemy, dropX, dropY);
+                return;
+            }
+        }
+    }
+    
+    /**
+     * 적과의 충돌 체크 (플레이어가 적 타일로 이동한 경우 - processPlayerTurn에서 처리)
+     */
+    private void checkEnemyCollision() {
+        if (gameState == GameState.BATTLE) return;
+        
+        for (Enemy enemy : enemies) {
+            if (enemy.isDead()) continue;
+            if (player.getX() == enemy.getX() && player.getY() == enemy.getY()) {
+                startBattle(enemy, enemy.getX(), enemy.getY());
                 break;
             }
         }
     }
     
     /**
-     * 적 처치 시 아이템 드롭
+     * 적 처치 시 아이템 드롭 (적이 있던 위치에)
      */
-    private void dropItemFromEnemy(Enemy enemy) {
+    private void dropItemFromEnemy(Enemy enemy, int dropX, int dropY) {
         Item droppedItem = ItemFactory.createRandomDrop();
         if (droppedItem != null) {
-            mapItems.add(new MapItem(enemy.getX(), enemy.getY(), droppedItem));
+            mapItems.add(new MapItem(dropX, dropY, droppedItem));
         }
     }
     
@@ -324,9 +336,10 @@ public class Game {
     
     /**
      * 전투 시작
+     * @param dropX, dropY 아이템 드롭 위치 (적이 죽은 위치)
      */
-    private void startBattle(Enemy enemy) {
-        battleManager = new BattleManager(player, enemy);
+    private void startBattle(Enemy enemy, int dropX, int dropY) {
+        battleManager = new BattleManager(player, enemy, dropX, dropY);
         setGameState(GameState.BATTLE);
     }
     
@@ -553,14 +566,6 @@ public class Game {
     /**
      * 적 업데이트
      */
-    private void updateEnemies() {
-        for (Enemy enemy : enemies) {
-            if (!enemy.isDead()) {
-                enemy.update(map, player, enemies);
-            }
-        }
-    }
-
     /**
      * 사망한 적 제거
      */
@@ -610,6 +615,23 @@ public class Game {
     }
     
     /**
+     * 인벤토리에서 소비 아이템 사용 (필드)
+     * @param slotIndex 인벤토리 슬롯 인덱스
+     * @return true if used, false otherwise
+     */
+    public boolean closeItemDetailPopupIfActive() {
+        return gameWindow.closeItemDetailPopupIfActive();
+    }
+    
+    public boolean useConsumableAtSlot(int slotIndex) {
+        if (slotIndex < 0 || slotIndex >= player.getInventory().getSize()) {
+            return false;
+        }
+        var item = player.getInventory().getItem(slotIndex);
+        return player.getInventory().useItem(item, player);
+    }
+    
+    /**
      * 생존 시간 (초)
      */
     public long getSurvivalTimeSeconds() {
@@ -627,5 +649,8 @@ public class Game {
         player.getInventory().addItem(ItemFactory.createLeatherBoots());
         player.getInventory().addItem(ItemFactory.createRing());
         player.getInventory().addItem(ItemFactory.createNecklace());
+        player.getInventory().addItem(ItemFactory.createHealthPotion());
+        player.getInventory().addItem(ItemFactory.createHealthPotion());
+        player.getInventory().addItem(ItemFactory.createGreaterHealthPotion());
     }
 }
