@@ -290,9 +290,11 @@ public class GameWindow extends JFrame {
                 g2d.drawString("Lv." + player.getLevel(), 20, 22);
                 g2d.drawString("HP: " + player.getHealth() + "/" + player.getMaxHealth(), 60, 22);
                 g2d.drawString("ATK:" + player.getAttack() + " DEF:" + player.getDefense(), 220, 22);
-                int expNext = player.getExpToNextLevel();
+                g2d.setColor(Color.LIGHT_GRAY);
+                g2d.drawString("좌표: (" + currentGame.getRelPlayerX() + ", " + currentGame.getRelPlayerY() + ")", 350, 22);
                 g2d.setColor(Color.CYAN);
-                g2d.drawString("EXP: " + player.getExperience() + "/" + expNext, 350, 22);
+                int expNext = player.getExpToNextLevel();
+                g2d.drawString("EXP: " + player.getExperience() + "/" + expNext, 480, 22);
                 g2d.setColor(Color.WHITE);
 
                 // 게임 상태
@@ -429,8 +431,8 @@ public class GameWindow extends JFrame {
                 com.rogue01.entity.Player player = currentGame.getPlayer();
                 g2d.drawString("Player HP: " + player.getHealth() + "/" + player.getMaxHealth(), getWidth() / 2 - 100,
                         getHeight() / 2 + 70);
-                g2d.drawString("Position: (" + player.getX() + ", " + player.getY() + ")", getWidth() / 2 - 100,
-                        getHeight() / 2 + 90);
+                g2d.drawString("Position: (" + currentGame.getRelPlayerX() + ", " + currentGame.getRelPlayerY() + ")",
+                        getWidth() / 2 - 100, getHeight() / 2 + 90);
                 g2d.drawString("Difficulty: " + currentGame.getDifficulty().name(), getWidth() / 2 - 100,
                         getHeight() / 2 + 110);
             } else if (currentGame != null && currentGame.getGameState() == com.rogue01.game.GameState.INVENTORY) {
@@ -872,8 +874,8 @@ public class GameWindow extends JFrame {
             g2d.fillRect(20, getHeight() - 80, 250, 60);
             g2d.setColor(Color.WHITE);
             g2d.setFont(new Font("Monospaced", Font.BOLD, 14));
-            g2d.drawString("Player: (" + player.getX() + ", " + player.getY() + ") | HP: " + player.getHealth(), 30,
-                    getHeight() - 60);
+            g2d.drawString("Player: (" + currentGame.getRelPlayerX() + ", " + currentGame.getRelPlayerY()
+                    + ") | HP: " + player.getHealth(), 30, getHeight() - 60);
             g2d.drawString(
                     "Map: " + currentGame.getMap().getWidth() + "x" + currentGame.getMap().getHeight() + " | Scale: 1:"
                             + Math.max(5,

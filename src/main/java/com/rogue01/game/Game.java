@@ -590,6 +590,16 @@ public class Game {
         return player;
     }
 
+    /** 스폰 지점 기준 상대 X (오른쪽이 +) */
+    public int getRelPlayerX() {
+        return player.getX() - map.getGenerationInfo().getPlayerStartX();
+    }
+
+    /** 스폰 지점 기준 상대 Y (위가 +) */
+    public int getRelPlayerY() {
+        return map.getGenerationInfo().getPlayerStartY() - player.getY();
+    }
+
     public GameWindow getGameWindow() {
         return gameWindow;
     }
