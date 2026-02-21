@@ -4,8 +4,8 @@ public class Armor extends Equipment {
     private ArmorType armorType;
     
     public Armor(String name, String description, ItemType type, int value, char symbol,
-                int attack, int defense, int durability, ArmorType armorType) {
-        super(name, description, type, value, symbol, attack, defense, durability);
+                 int level, int attack, int defense, int durability, ArmorType armorType) {
+        super(name, description, type, value, symbol, level, attack, defense, durability);
         this.armorType = armorType;
     }
     

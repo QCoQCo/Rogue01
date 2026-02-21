@@ -58,10 +58,18 @@ public class InputManager {
      */
     private void handleMenuInput() {
         if (inputHandler.isKeyPressed(KeyEvent.VK_ENTER)) {
-            // 게임 시작 신호 - 게임 상태를 PLAYING으로 변경
             if (game != null) {
                 game.setGameState(GameState.PLAYING);
             }
+            inputHandler.clearKeys();
+        } else if (inputHandler.isKeyPressed(KeyEvent.VK_1) && game != null) {
+            game.setDifficulty(com.rogue01.game.GameBalance.Difficulty.EASY);
+            inputHandler.clearKeys();
+        } else if (inputHandler.isKeyPressed(KeyEvent.VK_2) && game != null) {
+            game.setDifficulty(com.rogue01.game.GameBalance.Difficulty.NORMAL);
+            inputHandler.clearKeys();
+        } else if (inputHandler.isKeyPressed(KeyEvent.VK_3) && game != null) {
+            game.setDifficulty(com.rogue01.game.GameBalance.Difficulty.HARD);
             inputHandler.clearKeys();
         } else if (inputHandler.isKeyPressed(KeyEvent.VK_Q)) {
             System.exit(0);

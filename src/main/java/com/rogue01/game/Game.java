@@ -38,6 +38,9 @@ public class Game {
     
     // 일시정지 전 상태 (BATTLE 등에서 복귀용)
     private GameState stateBeforePause;
+    
+    // 난이도
+    private GameBalance.Difficulty difficulty;
 
     public Game() {
         this.gameState = GameState.MENU;
@@ -60,6 +63,9 @@ public class Game {
 
         // 테스트 아이템 추가
         addTestItems();
+
+        // 난이도 (기본: 보통) - spawnEnemies 등에서 사용하므로 먼저 설정
+        this.difficulty = GameBalance.Difficulty.NORMAL;
 
         // 적 스폰
         spawnEnemies();
@@ -309,7 +315,7 @@ public class Game {
      * 적 처치 시 아이템 드롭 (적이 있던 위치에)
      */
     private void dropItemFromEnemy(Enemy enemy, int dropX, int dropY) {
-        Item droppedItem = ItemFactory.createRandomDrop();
+        Item droppedItem = ItemFactory.createRandomDrop(difficulty);
         if (droppedItem != null) {
             mapItems.add(new MapItem(dropX, dropY, droppedItem));
         }
@@ -339,7 +345,7 @@ public class Game {
      * @param dropX, dropY 아이템 드롭 위치 (적이 죽은 위치)
      */
     private void startBattle(Enemy enemy, int dropX, int dropY) {
-        battleManager = new BattleManager(player, enemy, dropX, dropY);
+        battleManager = new BattleManager(player, enemy, dropX, dropY, difficulty);
         setGameState(GameState.BATTLE);
     }
     
@@ -435,7 +441,6 @@ public class Game {
         killCount = 0;
         gameStartTime = System.currentTimeMillis();
         
-        // 턴제: 플레이어 턴부터 시작
         turnPhase = TurnPhase.PLAYER_TURN;
         
         setGameState(GameState.PLAYING);
@@ -491,13 +496,12 @@ public class Game {
                     Math.pow(roomCenterX - playerStartX, 2) +
                             Math.pow(roomCenterY - playerStartY, 2));
 
-            // 플레이어 시작 위치에서 최소 10칸 이상 떨어진 방에만 스폰
-            if (distance < 10) {
+            if (distance < GameBalance.SPAWN_MIN_DISTANCE) {
                 continue;
             }
 
-            // 방 크기에 따라 적 수 결정
-            int enemyCount = Math.max(1, room.getArea() / 100);
+            int baseCount = Math.max(1, room.getArea() / GameBalance.ROOM_ENEMY_DIVISOR);
+            int enemyCount = Math.max(1, (int)(baseCount * GameBalance.getSpawnDensityMultiplier(difficulty)));
 
             for (int i = 0; i < enemyCount; i++) {
                 for (int attempt = 0; attempt < 10; attempt++) {
@@ -520,7 +524,8 @@ public class Game {
      * 랜덤 위치에 적 스폰 (방이 없을 때)
      */
     private void spawnEnemiesRandomly() {
-        int enemyCount = (map.getWidth() * map.getHeight()) / 500; // 맵 크기에 비례
+        int baseCount = (map.getWidth() * map.getHeight()) / GameBalance.RANDOM_SPAWN_DIVISOR;
+        int enemyCount = Math.max(1, (int)(baseCount * GameBalance.getSpawnDensityMultiplier(difficulty)));
 
         for (int i = 0; i < enemyCount; i++) {
             int attempts = 0;
@@ -528,13 +533,12 @@ public class Game {
                 int x = randomUtils.nextInt(1, map.getWidth() - 2);
                 int y = randomUtils.nextInt(1, map.getHeight() - 2);
 
-                // 플레이어 시작 위치와 너무 가까우면 제외
                 int playerStartX = map.getGenerationInfo().getPlayerStartX();
                 int playerStartY = map.getGenerationInfo().getPlayerStartY();
                 int distance = (int) Math.sqrt(
                         Math.pow(x - playerStartX, 2) + Math.pow(y - playerStartY, 2));
 
-                if (map.isWalkable(x, y) && distance >= 10 && getEnemyAt(x, y) == null) {
+                if (map.isWalkable(x, y) && distance >= GameBalance.SPAWN_MIN_DISTANCE && getEnemyAt(x, y) == null) {
                     EnemyType enemyType = getRandomEnemyType();
                     Enemy enemy = new Enemy(x, y, enemyType);
                     enemies.add(enemy);
@@ -550,13 +554,13 @@ public class Game {
      */
     private EnemyType getRandomEnemyType() {
         double rand = randomUtils.getRandom().nextDouble();
-        if (rand < 0.5) {
+        if (rand < GameBalance.SPAWN_GOBLIN) {
             return EnemyType.GOBLIN;
-        } else if (rand < 0.8) {
+        } else if (rand < GameBalance.SPAWN_SKELETON) {
             return EnemyType.SKELETON;
-        } else if (rand < 0.95) {
+        } else if (rand < GameBalance.SPAWN_ORC) {
             return EnemyType.ORC;
-        } else if (rand < 0.99) {
+        } else if (rand < GameBalance.SPAWN_TROLL) {
             return EnemyType.TROLL;
         } else {
             return EnemyType.DRAGON;
@@ -613,6 +617,9 @@ public class Game {
     public long getGameStartTime() {
         return gameStartTime;
     }
+    
+    public GameBalance.Difficulty getDifficulty() { return difficulty; }
+    public void setDifficulty(GameBalance.Difficulty difficulty) { this.difficulty = difficulty != null ? difficulty : GameBalance.Difficulty.NORMAL; }
     
     /**
      * 인벤토리에서 소비 아이템 사용 (필드)

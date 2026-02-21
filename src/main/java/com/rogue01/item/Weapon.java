@@ -4,8 +4,8 @@ public class Weapon extends Equipment {
     private WeaponType weaponType;
     
     public Weapon(String name, String description, ItemType type, int value, char symbol,
-                 int attack, int defense, int durability, WeaponType weaponType) {
-        super(name, description, type, value, symbol, attack, defense, durability);
+                  int level, int attack, int defense, int durability, WeaponType weaponType) {
+        super(name, description, type, value, symbol, level, attack, defense, durability);
         this.weaponType = weaponType;
     }
     

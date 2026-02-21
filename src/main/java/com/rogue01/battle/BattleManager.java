@@ -2,6 +2,7 @@ package com.rogue01.battle;
 
 import com.rogue01.entity.Player;
 import com.rogue01.entity.Enemy;
+import com.rogue01.game.GameBalance;
 import com.rogue01.item.Consumable;
 import com.rogue01.item.Item;
 import com.rogue01.map.utils.RandomUtils;
@@ -16,6 +17,7 @@ public class BattleManager {
     private Enemy enemy;
     private int dropX;
     private int dropY;
+    private GameBalance.Difficulty difficulty;
     private BattleState battleState;
     private RandomUtils randomUtils;
     private List<String> battleLog;
@@ -47,11 +49,12 @@ public class BattleManager {
         ESCAPE
     }
     
-    public BattleManager(Player player, Enemy enemy, int dropX, int dropY) {
+    public BattleManager(Player player, Enemy enemy, int dropX, int dropY, GameBalance.Difficulty difficulty) {
         this.player = player;
         this.enemy = enemy;
         this.dropX = dropX;
         this.dropY = dropY;
+        this.difficulty = difficulty != null ? difficulty : GameBalance.Difficulty.NORMAL;
         this.randomUtils = new RandomUtils();
         this.battleLog = new ArrayList<>();
         this.turnNumber = 0;
@@ -168,8 +171,8 @@ public class BattleManager {
      * 도망 시도
      */
     private void executeEscape() {
-        // 도망 성공 확률: 70%
-        boolean escaped = randomUtils.nextBoolean(0.7);
+        double escapeChance = GameBalance.getEscapeChance(difficulty);
+        boolean escaped = randomUtils.nextBoolean(escapeChance);
         
         if (escaped) {
             addLog("무사히 도망쳤다!");
@@ -188,8 +191,7 @@ public class BattleManager {
             return;
         }
         
-        // 적은 항상 공격
-        int enemyAttack = enemy.getAttack();
+        int enemyAttack = (int)(enemy.getAttack() * GameBalance.getEnemyAttackMultiplier(difficulty));
         int playerDefense = player.getDefense();
         
         // 크리티컬 체크 (5% 확률)

@@ -54,9 +54,9 @@ public class Player extends Entity {
      * 레벨에 따른 기본 스탯 적용
      */
     private void applyLevelStats() {
-        this.baseAttack = 5 + level * 2;
-        this.baseDefense = 2 + level;
-        this.maxHealth = 80 + level * 15;
+        this.baseAttack = com.rogue01.game.GameBalance.PLAYER_BASE_ATTACK + level * com.rogue01.game.GameBalance.PLAYER_ATTACK_PER_LEVEL;
+        this.baseDefense = com.rogue01.game.GameBalance.PLAYER_BASE_DEFENSE + level * com.rogue01.game.GameBalance.PLAYER_DEFENSE_PER_LEVEL;
+        this.maxHealth = com.rogue01.game.GameBalance.PLAYER_BASE_HP + level * com.rogue01.game.GameBalance.PLAYER_HP_PER_LEVEL;
         if (this.health > this.maxHealth) {
             this.health = this.maxHealth;
         }
@@ -88,7 +88,7 @@ public class Player extends Entity {
      * 다음 레벨까지 필요한 경험치
      */
     public int getExpToNextLevel() {
-        return 50 + level * 40;
+        return com.rogue01.game.GameBalance.getExpToNextLevel(level);
     }
 
     @Override

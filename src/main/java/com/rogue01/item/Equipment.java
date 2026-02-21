@@ -1,21 +1,24 @@
 package com.rogue01.item;
 
 public abstract class Equipment extends Item {
+    protected int level;
     protected int attack;
     protected int defense;
     protected int durability;
     protected int maxDurability;
-    
-    public Equipment(String name, String description, ItemType type, int value, char symbol, 
-                    int attack, int defense, int durability) {
+
+    public Equipment(String name, String description, ItemType type, int value, char symbol,
+                     int level, int attack, int defense, int durability) {
         super(name, description, type, value, symbol);
+        this.level = level;
         this.attack = attack;
         this.defense = defense;
         this.durability = durability;
         this.maxDurability = durability;
     }
-    
+
     // Getters
+    public int getLevel() { return level; }
     public int getAttack() { return attack; }
     public int getDefense() { return defense; }
     public int getDurability() { return durability; }
