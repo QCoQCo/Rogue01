@@ -7,21 +7,21 @@ public class MapItem {
     private int x;
     private int y;
     private Item item;
-    
+
     public MapItem(int x, int y, Item item) {
         this.x = x;
         this.y = y;
         this.item = item;
     }
-    
+
     public int getX() {
         return x;
     }
-    
+
     public int getY() {
         return y;
     }
-    
+
     public Item getItem() {
         return item;
     }
