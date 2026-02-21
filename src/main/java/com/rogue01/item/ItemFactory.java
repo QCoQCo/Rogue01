@@ -7,7 +7,8 @@ public class ItemFactory {
     private static final Random RANDOM = new Random();
 
     private static int rollInRange(int min, int max) {
-        if (min >= max) return min;
+        if (min >= max)
+            return min;
         return min + RANDOM.nextInt(max - min + 1);
     }
 
@@ -37,22 +38,22 @@ public class ItemFactory {
             default -> createSword(level);
         };
     }
-    
+
     /**
      * 랜덤 소비 아이템 생성
      */
     public static Consumable createRandomConsumable() {
         return RANDOM.nextBoolean() ? createHealthPotion() : createGreaterHealthPotion();
     }
-    
+
     public static HealthPotion createHealthPotion() {
         return new HealthPotion("체력 포션", "HP를 30 회복합니다.", 50, 'P', 30);
     }
-    
+
     public static HealthPotion createGreaterHealthPotion() {
         return new HealthPotion("상급 체력 포션", "HP를 80 회복합니다.", 120, 'Q', 80);
     }
-    
+
     /** 레벨 1 검 (테스트/시작용) */
     public static Weapon createSword() {
         return createSword(1);
@@ -165,4 +166,4 @@ public class ItemFactory {
         return new Armor(name, "보호의 힘이 깃든 목걸이입니다. (Lv." + level + ")", ItemType.NECKLACE, value, 'N',
                 level, attack, defense, durability, Armor.ArmorType.NECKLACE);
     }
-} 
+}

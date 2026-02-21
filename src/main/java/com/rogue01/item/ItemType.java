@@ -10,14 +10,14 @@ public enum ItemType {
     WEAPON_OFF("보조무기"),
     CONSUMABLE("소비아이템"),
     MATERIAL("재료");
-    
+
     private final String koreanName;
-    
+
     ItemType(String koreanName) {
         this.koreanName = koreanName;
     }
-    
+
     public String getKoreanName() {
         return koreanName;
     }
-} 
+}

@@ -6,7 +6,7 @@ public abstract class Item {
     protected ItemType type;
     protected int value;
     protected char symbol;
-    
+
     public Item(String name, String description, ItemType type, int value, char symbol) {
         this.name = name;
         this.description = description;
@@ -14,18 +14,32 @@ public abstract class Item {
         this.value = value;
         this.symbol = symbol;
     }
-    
+
     // Getters
-    public String getName() { return name; }
-    public String getDescription() { return description; }
-    public ItemType getType() { return type; }
-    public int getValue() { return value; }
-    public char getSymbol() { return symbol; }
-    
+    public String getName() {
+        return name;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public ItemType getType() {
+        return type;
+    }
+
+    public int getValue() {
+        return value;
+    }
+
+    public char getSymbol() {
+        return symbol;
+    }
+
     public abstract void use(com.rogue01.entity.Player player);
-    
+
     @Override
     public String toString() {
         return name + " (" + type + ")";
     }
-} 
+}

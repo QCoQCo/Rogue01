@@ -8,12 +8,12 @@ import com.rogue01.map.Map;
 public class Player extends Entity {
     private InputHandler inputHandler;
     private Inventory inventory;
-    
+
     // 레벨/스탯 시스템
     private int level;
     private int experience;
-    private int baseAttack;   // 레벨에 따른 기본 공격력
-    private int baseDefense;  // 레벨에 따른 기본 방어력
+    private int baseAttack; // 레벨에 따른 기본 공격력
+    private int baseDefense; // 레벨에 따른 기본 방어력
 
     // 이동 방향을 정의하는 enum
     private enum Direction {
@@ -49,32 +49,36 @@ public class Player extends Entity {
         this.experience = 0;
         applyLevelStats();
     }
-    
+
     /**
      * 레벨에 따른 기본 스탯 적용
      */
     private void applyLevelStats() {
-        this.baseAttack = com.rogue01.game.GameBalance.PLAYER_BASE_ATTACK + level * com.rogue01.game.GameBalance.PLAYER_ATTACK_PER_LEVEL;
-        this.baseDefense = com.rogue01.game.GameBalance.PLAYER_BASE_DEFENSE + level * com.rogue01.game.GameBalance.PLAYER_DEFENSE_PER_LEVEL;
-        this.maxHealth = com.rogue01.game.GameBalance.PLAYER_BASE_HP + level * com.rogue01.game.GameBalance.PLAYER_HP_PER_LEVEL;
+        this.baseAttack = com.rogue01.game.GameBalance.PLAYER_BASE_ATTACK
+                + level * com.rogue01.game.GameBalance.PLAYER_ATTACK_PER_LEVEL;
+        this.baseDefense = com.rogue01.game.GameBalance.PLAYER_BASE_DEFENSE
+                + level * com.rogue01.game.GameBalance.PLAYER_DEFENSE_PER_LEVEL;
+        this.maxHealth = com.rogue01.game.GameBalance.PLAYER_BASE_HP
+                + level * com.rogue01.game.GameBalance.PLAYER_HP_PER_LEVEL;
         if (this.health > this.maxHealth) {
             this.health = this.maxHealth;
         }
     }
-    
+
     /**
      * 경험치 추가 및 레벨업 처리
      */
     public void addExperience(int exp) {
-        if (exp <= 0) return;
+        if (exp <= 0)
+            return;
         this.experience += exp;
-        
+
         while (experience >= getExpToNextLevel()) {
             experience -= getExpToNextLevel();
             levelUp();
         }
     }
-    
+
     /**
      * 레벨업 시 스탯 상승
      */
@@ -83,7 +87,7 @@ public class Player extends Entity {
         applyLevelStats();
         health = maxHealth; // 풀 회복
     }
-    
+
     /**
      * 다음 레벨까지 필요한 경험치
      */
@@ -173,7 +177,7 @@ public class Player extends Entity {
         }
         return totalAttack;
     }
-    
+
     /**
      * 레벨/경험치 초기화 (재시작 시)
      */
@@ -183,10 +187,21 @@ public class Player extends Entity {
         applyLevelStats();
         this.health = this.maxHealth;
     }
-    
+
     // 레벨/스탯 getters
-    public int getLevel() { return level; }
-    public int getExperience() { return experience; }
-    public int getBaseAttack() { return baseAttack; }
-    public int getBaseDefense() { return baseDefense; }
+    public int getLevel() {
+        return level;
+    }
+
+    public int getExperience() {
+        return experience;
+    }
+
+    public int getBaseAttack() {
+        return baseAttack;
+    }
+
+    public int getBaseDefense() {
+        return baseDefense;
+    }
 }

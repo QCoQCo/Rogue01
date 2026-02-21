@@ -25,30 +25,30 @@ public class BattleManager {
     private boolean playerTurn;
     private boolean battleEnded;
     private BattleResult result;
-    
+
     public enum BattleState {
-        STARTING,       // 전투 시작
-        PLAYER_TURN,    // 플레이어 턴
-        ENEMY_TURN,     // 적 턴
-        ANIMATING,      // 애니메이션 중
-        VICTORY,        // 승리
-        DEFEAT,         // 패배
-        ESCAPED         // 도망 성공
+        STARTING, // 전투 시작
+        PLAYER_TURN, // 플레이어 턴
+        ENEMY_TURN, // 적 턴
+        ANIMATING, // 애니메이션 중
+        VICTORY, // 승리
+        DEFEAT, // 패배
+        ESCAPED // 도망 성공
     }
-    
+
     public enum BattleResult {
         VICTORY,
         DEFEAT,
         ESCAPED
     }
-    
+
     public enum BattleAction {
         ATTACK,
         DEFEND,
         ITEM,
         ESCAPE
     }
-    
+
     public BattleManager(Player player, Enemy enemy, int dropX, int dropY, GameBalance.Difficulty difficulty) {
         this.player = player;
         this.enemy = enemy;
@@ -61,10 +61,10 @@ public class BattleManager {
         this.battleState = BattleState.STARTING;
         this.battleEnded = false;
         this.playerTurn = true; // 플레이어가 먼저 시작
-        
+
         addLog("전투 시작! " + enemy.getName() + "와(과) 맞섰다!");
     }
-    
+
     /**
      * 전투 업데이트
      */
@@ -72,37 +72,37 @@ public class BattleManager {
         if (battleEnded) {
             return;
         }
-        
+
         switch (battleState) {
             case STARTING:
                 battleState = BattleState.PLAYER_TURN;
                 addLog("당신의 턴입니다!");
                 break;
-                
+
             case PLAYER_TURN:
                 // 플레이어 입력 대기 (UI에서 처리)
                 break;
-                
+
             case ENEMY_TURN:
                 executeEnemyTurn();
                 break;
-                
+
             case ANIMATING:
                 // 애니메이션 처리 (나중에 구현)
                 battleState = BattleState.PLAYER_TURN;
                 break;
-                
+
             case VICTORY:
             case DEFEAT:
             case ESCAPED:
                 battleEnded = true;
                 break;
         }
-        
+
         // 승리/패배 체크
         checkBattleEnd();
     }
-    
+
     /**
      * 플레이어 액션 실행
      */
@@ -110,7 +110,7 @@ public class BattleManager {
         if (battleState != BattleState.PLAYER_TURN || battleEnded) {
             return;
         }
-        
+
         switch (action) {
             case ATTACK:
                 executePlayerAttack();
@@ -125,39 +125,37 @@ public class BattleManager {
                 executeEscape();
                 break;
         }
-        
+
         // 적 턴으로 전환
         if (!battleEnded && battleState == BattleState.PLAYER_TURN) {
             battleState = BattleState.ENEMY_TURN;
             turnNumber++;
         }
     }
-    
+
     /**
      * 플레이어 공격 실행
      */
     private void executePlayerAttack() {
         int playerAttack = player.getAttack();
         int enemyDefense = enemy.getDefense();
-        
+
         // 크리티컬 체크 (10% 확률)
         boolean isCritical = randomUtils.nextBoolean(0.1);
         int damage = calculateDamage(playerAttack, enemyDefense, isCritical);
-        
+
         enemy.takeDamage(damage);
-        
-        String message = isCritical ? 
-            "크리티컬 히트! " + damage + "의 데미지!" :
-            player.getName() + "의 공격! " + damage + "의 데미지!";
+
+        String message = isCritical ? "크리티컬 히트! " + damage + "의 데미지!" : player.getName() + "의 공격! " + damage + "의 데미지!";
         addLog(message);
-        
+
         if (enemy.isDead()) {
             addLog(enemy.getName() + "를(을) 쓰러뜨렸다!");
             battleState = BattleState.VICTORY;
             result = BattleResult.VICTORY;
         }
     }
-    
+
     /**
      * 플레이어 방어 실행
      */
@@ -166,14 +164,14 @@ public class BattleManager {
         // 방어 시 다음 턴에 받는 데미지 감소 (50%)
         // 이는 임시 버프로 구현 가능 (나중에 확장)
     }
-    
+
     /**
      * 도망 시도
      */
     private void executeEscape() {
         double escapeChance = GameBalance.getEscapeChance(difficulty);
         boolean escaped = randomUtils.nextBoolean(escapeChance);
-        
+
         if (escaped) {
             addLog("무사히 도망쳤다!");
             battleState = BattleState.ESCAPED;
@@ -182,7 +180,7 @@ public class BattleManager {
             addLog("도망에 실패했다!");
         }
     }
-    
+
     /**
      * 적 턴 실행
      */
@@ -190,21 +188,19 @@ public class BattleManager {
         if (enemy.isDead()) {
             return;
         }
-        
-        int enemyAttack = (int)(enemy.getAttack() * GameBalance.getEnemyAttackMultiplier(difficulty));
+
+        int enemyAttack = (int) (enemy.getAttack() * GameBalance.getEnemyAttackMultiplier(difficulty));
         int playerDefense = player.getDefense();
-        
+
         // 크리티컬 체크 (5% 확률)
         boolean isCritical = randomUtils.nextBoolean(0.05);
         int damage = calculateDamage(enemyAttack, playerDefense, isCritical);
-        
+
         player.takeDamage(damage);
-        
-        String message = isCritical ?
-            "크리티컬 히트! " + damage + "의 데미지!" :
-            enemy.getName() + "의 공격! " + damage + "의 데미지!";
+
+        String message = isCritical ? "크리티컬 히트! " + damage + "의 데미지!" : enemy.getName() + "의 공격! " + damage + "의 데미지!";
         addLog(message);
-        
+
         if (player.isDead()) {
             addLog(player.getName() + "는(은) 쓰러졌다...");
             battleState = BattleState.DEFEAT;
@@ -215,22 +211,22 @@ public class BattleManager {
             addLog("당신의 턴입니다!");
         }
     }
-    
+
     /**
      * 데미지 계산
      */
     private int calculateDamage(int attack, int defense, boolean isCritical) {
         int baseDamage = Math.max(1, attack - defense);
-        
+
         if (isCritical) {
-            baseDamage = (int)(baseDamage * 1.5);
+            baseDamage = (int) (baseDamage * 1.5);
         }
-        
+
         // 랜덤 변동 (80%~120%)
         double variance = 0.8 + randomUtils.getRandom().nextDouble() * 0.4;
-        return Math.max(1, (int)(baseDamage * variance));
+        return Math.max(1, (int) (baseDamage * variance));
     }
-    
+
     /**
      * 전투 종료 체크
      */
@@ -245,9 +241,10 @@ public class BattleManager {
             battleEnded = true;
         }
     }
-    
+
     /**
      * 소비 아이템 사용 (전투 중)
+     * 
      * @param consumableListIndex getConsumables() 목록 기준 인덱스
      * @return true if used, false if failed (취소 또는 없음)
      */
@@ -278,14 +275,14 @@ public class BattleManager {
         turnNumber++;
         return true;
     }
-    
+
     /**
      * 소비 아이템 목록 (전투 중 사용 가능)
      */
     public List<Item> getConsumables() {
         return player.getInventory().getConsumables();
     }
-    
+
     /**
      * 전투 로그 추가
      */
@@ -296,7 +293,7 @@ public class BattleManager {
             battleLog.remove(0);
         }
     }
-    
+
     /**
      * 전투 종료 후 보상 처리
      */
@@ -311,39 +308,44 @@ public class BattleManager {
             }
         }
     }
-    
+
     // Getters
     public Player getPlayer() {
         return player;
     }
-    
+
     public Enemy getEnemy() {
         return enemy;
     }
-    
-    public int getDropX() { return dropX; }
-    public int getDropY() { return dropY; }
-    
+
+    public int getDropX() {
+        return dropX;
+    }
+
+    public int getDropY() {
+        return dropY;
+    }
+
     public BattleState getBattleState() {
         return battleState;
     }
-    
+
     public List<String> getBattleLog() {
         return new ArrayList<>(battleLog);
     }
-    
+
     public int getTurnNumber() {
         return turnNumber;
     }
-    
+
     public boolean isBattleEnded() {
         return battleEnded;
     }
-    
+
     public BattleResult getResult() {
         return result;
     }
-    
+
     public boolean isPlayerTurn() {
         return battleState == BattleState.PLAYER_TURN;
     }

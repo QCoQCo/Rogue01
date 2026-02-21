@@ -178,8 +178,9 @@ public class InputManager {
      * 게임 오버 상태 입력 처리
      */
     private void handleGameOverInput() {
-        if (game == null) return;
-        
+        if (game == null)
+            return;
+
         if (inputHandler.isKeyPressed(KeyEvent.VK_R)) {
             // 재시작
             game.restartGame();

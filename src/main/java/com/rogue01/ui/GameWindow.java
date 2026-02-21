@@ -291,7 +291,8 @@ public class GameWindow extends JFrame {
                 g2d.drawString("HP: " + player.getHealth() + "/" + player.getMaxHealth(), 60, 22);
                 g2d.drawString("ATK:" + player.getAttack() + " DEF:" + player.getDefense(), 220, 22);
                 g2d.setColor(Color.LIGHT_GRAY);
-                g2d.drawString("좌표: (" + currentGame.getRelPlayerX() + ", " + currentGame.getRelPlayerY() + ")", 350, 22);
+                g2d.drawString("좌표: (" + currentGame.getRelPlayerX() + ", " + currentGame.getRelPlayerY() + ")", 350,
+                        22);
                 g2d.setColor(Color.CYAN);
                 int expNext = player.getExpToNextLevel();
                 g2d.drawString("EXP: " + player.getExperience() + "/" + expNext, 480, 22);

@@ -9,14 +9,14 @@ public enum EnemyType {
     SKELETON("스켈레톤", 's', 55, 10, 5, 2),
     TROLL("트롤", 'T', 110, 18, 9, 5),
     DRAGON("드래곤", 'D', 180, 26, 12, 8);
-    
+
     private final String koreanName;
     private final char symbol;
     private final int maxHealth;
     private final int attack;
     private final int defense;
     private final int experience;
-    
+
     EnemyType(String koreanName, char symbol, int maxHealth, int attack, int defense, int experience) {
         this.koreanName = koreanName;
         this.symbol = symbol;
@@ -25,27 +25,27 @@ public enum EnemyType {
         this.defense = defense;
         this.experience = experience;
     }
-    
+
     public String getKoreanName() {
         return koreanName;
     }
-    
+
     public char getSymbol() {
         return symbol;
     }
-    
+
     public int getMaxHealth() {
         return maxHealth;
     }
-    
+
     public int getAttack() {
         return attack;
     }
-    
+
     public int getDefense() {
         return defense;
     }
-    
+
     public int getExperience() {
         return experience;
     }
