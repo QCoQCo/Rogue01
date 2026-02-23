@@ -315,27 +315,39 @@ public class GameWindow extends JFrame {
         private void drawGame(Graphics2D g2d) {
             g2d.setColor(Color.WHITE);
             if (currentGame != null && currentGame.getGameState() == com.rogue01.game.GameState.MENU) {
+                int centerX = getWidth() / 2;
+                int baseY = getHeight() / 2;
+                FontMetrics fm;
+
                 // 타이틀
                 g2d.setFont(new Font("Monospaced", Font.BOLD, 48));
                 g2d.setColor(new Color(80, 200, 120));
-                g2d.drawString("Rogue01", getWidth() / 2 - 120, getHeight() / 2 - 100);
+                fm = g2d.getFontMetrics();
+                g2d.drawString("Rogue01", centerX - fm.stringWidth("Rogue01") / 2, baseY - 100);
                 // 게임 설명
                 g2d.setColor(Color.LIGHT_GRAY);
                 g2d.setFont(new Font("Monospaced", Font.PLAIN, 16));
-                g2d.drawString("Move: WASD / Arrow Keys", getWidth() / 2 - 100, getHeight() / 2 - 40);
-                g2d.drawString("Start: ENTER | Quit: Q", getWidth() / 2 - 100, getHeight() / 2 - 15);
-                g2d.drawString("Difficulty: 1-쉬움 2-보통 3-어려움", getWidth() / 2 - 130, getHeight() / 2 + 15);
+                fm = g2d.getFontMetrics();
+                g2d.drawString("Move: WASD / Arrow Keys", centerX - fm.stringWidth("Move: WASD / Arrow Keys") / 2,
+                        baseY - 40);
+                g2d.drawString("Start: ENTER | Quit: Q", centerX - fm.stringWidth("Start: ENTER | Quit: Q") / 2,
+                        baseY - 15);
+                String diffStr = "Difficulty: 1-쉬움 2-보통 3-어려움";
+                g2d.drawString(diffStr, centerX - fm.stringWidth(diffStr) / 2, baseY + 15);
                 com.rogue01.game.GameBalance.Difficulty diff = currentGame.getDifficulty();
                 g2d.setColor(Color.YELLOW);
-                g2d.drawString("현재: " + diff.getKoreanName(), getWidth() / 2 - 80, getHeight() / 2 + 45);
+                String currentStr = "현재: " + diff.getKoreanName();
+                g2d.drawString(currentStr, centerX - fm.stringWidth(currentStr) / 2, baseY + 45);
                 g2d.setFont(new Font("Monospaced", Font.BOLD, 18));
-                g2d.setColor(Color.YELLOW);
-                g2d.drawString("> Press ENTER to Start <", getWidth() / 2 - 140, getHeight() / 2 + 85);
+                String startStr = "> Press ENTER to Start <";
+                g2d.drawString(startStr, centerX - fm.stringWidth(startStr) / 2, baseY + 85);
                 // 제작자 정보
                 g2d.setColor(Color.WHITE);
                 g2d.setFont(new Font("Monospaced", Font.PLAIN, 14));
                 g2d.setColor(Color.GRAY);
-                g2d.drawString("Created by SCODA", getWidth() / 2 - 80, getHeight() / 2 + 130);
+                fm = g2d.getFontMetrics();
+                String creditStr = "Created by CO_s_MOS";
+                g2d.drawString(creditStr, centerX - fm.stringWidth(creditStr) / 2, baseY + 130);
                 g2d.setColor(Color.WHITE);
             } else if (currentGame != null && (currentGame.getGameState() == com.rogue01.game.GameState.PLAYING
                     || currentGame.getGameState() == com.rogue01.game.GameState.BOSS_DOOR_PROMPT)) {
@@ -370,7 +382,7 @@ public class GameWindow extends JFrame {
                 g2d.setColor(Color.LIGHT_GRAY);
                 g2d.setFont(new Font("Monospaced", Font.PLAIN, 12));
                 g2d.drawString("Controls:", getWidth() - 200, 15);
-                g2d.drawString("WASD: Move | F: 계단/보스방", getWidth() - 200, 30);
+                g2d.drawString("WASD: Move | F: Stairs/Doors", getWidth() - 200, 30);
                 g2d.drawString("I: Inventory | M: Map", getWidth() - 200, 45);
 
                 // 맵과 플레이어 렌더링
@@ -841,11 +853,24 @@ public class GameWindow extends JFrame {
                     g2d.drawString(
                             equipped.getName() + " (공격+" + equipped.getAttack() + " 방어+" + equipped.getDefense() + ")",
                             contentX, contentY + 105);
-                    g2d.setColor(new Color(150, 255, 150));
-                    g2d.drawString("→ 교체 시: 공격 " + (eq.getAttack() - equipped.getAttack() >= 0 ? "+" : "")
-                            + (eq.getAttack() - equipped.getAttack()) +
-                            ", 방어 " + (eq.getDefense() - equipped.getDefense() >= 0 ? "+" : "")
-                            + (eq.getDefense() - equipped.getDefense()), contentX, contentY + 125);
+                    int attackDiff = eq.getAttack() - equipped.getAttack();
+                    int defenseDiff = eq.getDefense() - equipped.getDefense();
+                    int lineY = contentY + 125;
+                    g2d.setColor(new Color(200, 200, 200));
+                    g2d.drawString("→ 교체 시: ", contentX, lineY);
+                    int curX = contentX + g2d.getFontMetrics().stringWidth("→ 교체 시: ");
+                    // 공격력: +면 초록, -면 빨강
+                    String attackStr = "공격 " + (attackDiff >= 0 ? "+" : "") + attackDiff;
+                    g2d.setColor(attackDiff >= 0 ? new Color(150, 255, 150) : new Color(255, 120, 120));
+                    g2d.drawString(attackStr, curX, lineY);
+                    curX += g2d.getFontMetrics().stringWidth(attackStr);
+                    g2d.setColor(new Color(200, 200, 200));
+                    g2d.drawString(", ", curX, lineY);
+                    curX += g2d.getFontMetrics().stringWidth(", ");
+                    // 방어력: +면 초록, -면 빨강
+                    String defenseStr = "방어 " + (defenseDiff >= 0 ? "+" : "") + defenseDiff;
+                    g2d.setColor(defenseDiff >= 0 ? new Color(150, 255, 150) : new Color(255, 120, 120));
+                    g2d.drawString(defenseStr, curX, lineY);
                 }
             }
 
