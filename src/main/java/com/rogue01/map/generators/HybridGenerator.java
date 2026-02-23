@@ -11,6 +11,12 @@ public class HybridGenerator implements MapGenerator {
     private long generationTime;
     private int lastWidth;
     private int lastHeight;
+    private int chapter = 1;
+    private int level = 1;
+    private int lastStairsX = -1;
+    private int lastStairsY = -1;
+    private final List<int[]> lastSealWalls = new ArrayList<>();
+    private final List<int[]> lastBossDoors = new ArrayList<>();
 
     // 각 생성기
     private RoomCorridorGenerator roomGenerator;
@@ -29,6 +35,11 @@ public class HybridGenerator implements MapGenerator {
         long startTime = System.currentTimeMillis();
         this.lastWidth = width;
         this.lastHeight = height;
+        this.rooms.clear();
+        this.lastStairsX = -1;
+        this.lastStairsY = -1;
+        this.lastSealWalls.clear();
+        this.lastBossDoors.clear();
 
         // 맵을 벽으로 초기화
         Tile[][] tiles = new Tile[width][height];
@@ -58,9 +69,69 @@ public class HybridGenerator implements MapGenerator {
         // 5. 플레이어 시작 위치 설정 (중심부)
         setPlayerStartPosition(tiles, centerX, centerY);
 
+        // 6. 계단 및 봉인벽 배치 (1층, 2층에만 - 3층은 보스방만)
+        if (level <= 2) {
+            placeStairsAndSealWalls(tiles, width, height, centerX, centerY);
+        }
+
+        // 7. 보스방 문 배치 (2층: 중간보스 2개 3x4, 3층: 챕터보스 1개 4x12)
+        if (level >= 2) {
+            placeBossDoors(tiles, width, height, centerX, centerY);
+        }
+
         generationTime = System.currentTimeMillis() - startTime;
 
         return tiles;
+    }
+
+    @Override
+    public void setChapterLevel(int chapter, int level) {
+        this.chapter = Math.max(1, Math.min(3, chapter));
+        this.level = Math.max(1, Math.min(3, level));
+    }
+
+    /**
+     * 계단 배치 (플레이어와 거리 두고), 2층이면 주변 8칸 봉인벽
+     */
+    private void placeStairsAndSealWalls(Tile[][] tiles, int width, int height, int playerX, int playerY) {
+        Random rand = new Random(seed + 1000);
+        int minDist = 15;
+        int attempts = 0;
+        int stairsX = -1, stairsY = -1;
+
+        while (attempts < 200) {
+            int x = 10 + rand.nextInt(width - 20);
+            int y = 10 + rand.nextInt(height - 20);
+            int dist = (int) Math.sqrt(Math.pow(x - playerX, 2) + Math.pow(y - playerY, 2));
+            if (dist >= minDist && tiles[x][y].isWalkable()) {
+                stairsX = x;
+                stairsY = y;
+                break;
+            }
+            attempts++;
+        }
+
+        lastStairsX = stairsX;
+        lastStairsY = stairsY;
+        lastSealWalls.clear();
+
+        if (stairsX >= 0 && stairsY >= 0) {
+            tiles[stairsX][stairsY] = new Tile('>', true, Tile.TileType.STAIRS_DOWN);
+
+            // 2층: 계단 주변 8칸 봉인벽
+            if (level == 2) {
+                int[] dx = {-1, 0, 1, -1, 1, -1, 0, 1};
+                int[] dy = {-1, -1, -1, 0, 0, 1, 1, 1};
+                for (int i = 0; i < 8; i++) {
+                    int nx = stairsX + dx[i];
+                    int ny = stairsY + dy[i];
+                    if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+                        tiles[nx][ny] = new Tile('#', false, Tile.TileType.SEAL_WALL);
+                        lastSealWalls.add(new int[]{nx, ny});
+                    }
+                }
+            }
+        }
     }
 
     private void generateCentralArea(Tile[][] tiles, int startX, int startY, int sizeX, int sizeY) {
@@ -185,6 +256,103 @@ public class HybridGenerator implements MapGenerator {
         tiles[centerX][centerY] = new Tile('.', true);
     }
 
+    /**
+     * 보스방 문 배치: 2층=중간보스 2개(3x4), 3층=챕터보스 1개(4x12)
+     * 기존 연결 통로 끝을 연장한 뒤 문 블록 배치
+     */
+    private void placeBossDoors(Tile[][] tiles, int width, int height, int centerX, int centerY) {
+        Random rand = new Random(seed + 2000);
+        int[][] dirs = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+        List<int[]> used = new ArrayList<>();
+
+        if (level == 2) {
+            // 중간보스 문 2개 (3x4) - 서로 다른 방향에 배치
+            for (int i = 0; i < 2; i++) {
+                for (int attempt = 0; attempt < 4; attempt++) {
+                    int[] dir = dirs[(i * 2 + attempt) % 4];
+                    if (placeBossDoorBlock(tiles, width, height, centerX, centerY, dir[0], dir[1], 3, 4, true, used)) {
+                        used.add(dir);
+                        break;
+                    }
+                }
+            }
+        } else if (level == 3) {
+            // 챕터보스 문 1개 (4x12)
+            int[] dir = dirs[rand.nextInt(4)];
+            placeBossDoorBlock(tiles, width, height, centerX, centerY, dir[0], dir[1], 4, 12, false, used);
+        }
+    }
+
+    /**
+     * @param dx, dy 방향 (1,0)=오른쪽, (-1,0)=왼쪽, (0,1)=아래, (0,-1)=위
+     * @param doorW, doorH 문 크기 (가로x세로)
+     * @param isMidBoss true=중간보스(Troll), false=챕터보스(Dragon)
+     */
+    private boolean placeBossDoorBlock(Tile[][] tiles, int width, int height, int centerX, int centerY,
+            int dx, int dy, int doorW, int doorH, boolean isMidBoss, List<int[]> usedDirs) {
+        for (int[] u : usedDirs) {
+            if (u[0] == dx && u[1] == dy) return false;
+        }
+        int dist = Math.min(width, height) / 3;
+        int endX = centerX + dx * dist;
+        int endY = centerY + dy * dist;
+        endX = Math.max(2, Math.min(width - 2, endX));
+        endY = Math.max(2, Math.min(height - 2, endY));
+
+        // 통로 연장 (끝까지)
+        createConnectionPath(tiles, centerX, centerY, endX, endY);
+        // 문 앞 한 칸 더
+        int doorFrontX = endX + dx;
+        int doorFrontY = endY + dy;
+        if (doorFrontX < 1 || doorFrontX >= width - 1 || doorFrontY < 1 || doorFrontY >= height - 1) {
+            return false;
+        }
+        tiles[doorFrontX][doorFrontY] = new Tile('.', true);
+
+        // 문 블록: dx>0이면 문이 end 오른쪽에 (doorFront가 문 왼쪽 끝)
+        int baseX = doorFrontX + dx;
+        int baseY = doorFrontY - doorH / 2;
+        if (dy != 0) {
+            baseX = doorFrontX - doorW / 2;
+            baseY = doorFrontY + dy;
+        }
+        baseX = Math.max(0, Math.min(width - doorW, baseX));
+        baseY = Math.max(0, Math.min(height - doorH, baseY));
+
+        Tile.TileType doorType = isMidBoss ? Tile.TileType.BOSS_DOOR_MID : Tile.TileType.BOSS_DOOR_CHAPTER;
+        for (int ox = 0; ox < doorW; ox++) {
+            for (int oy = 0; oy < doorH; oy++) {
+                int tx = baseX + ox;
+                int ty = baseY + oy;
+                if (tx >= 0 && tx < width && ty >= 0 && ty < height) {
+                    char sym = getBossDoorSymbol(ox, oy, doorW, doorH, isMidBoss);
+                    tiles[tx][ty] = new Tile(sym, false, doorType);
+                    lastBossDoors.add(new int[]{tx, ty, isMidBoss ? 1 : 0});
+                }
+            }
+        }
+        return true;
+    }
+
+    /**
+     * 보스 문 타일 심볼 - 챕터보스(4x12)는 역십자가 아스키아트, 중간보스는 'D'
+     */
+    private char getBossDoorSymbol(int ox, int oy, int doorW, int doorH, boolean isMidBoss) {
+        if (isMidBoss) {
+            return 'D';
+        }
+        // 챕터보스 4x12: 역십자가 (세로 막대 col 1-2, 가로 막대 row 5-6)
+        if (doorW == 4 && doorH == 12) {
+            boolean inVertical = (ox == 1 || ox == 2);
+            boolean inHorizontal = (oy == 5 || oy == 6);
+            if (inHorizontal && inVertical) return '+';
+            if (inHorizontal) return '-';
+            if (inVertical) return '|';
+            return '#';
+        }
+        return 'D';
+    }
+
     @Override
     public void setSeed(long seed) {
         this.seed = seed;
@@ -195,11 +363,18 @@ public class HybridGenerator implements MapGenerator {
 
     @Override
     public MapGenerationInfo getGenerationInfo() {
-        // 맵 중심을 플레이어 시작 위치로 사용
         int playerStartX = lastWidth / 2;
         int playerStartY = lastHeight / 2;
-
-        return new MapGenerationInfo(rooms.size(), rooms.size() * 2, playerStartX, playerStartY, rooms, generationTime);
+        MapGenerationInfo info = new MapGenerationInfo(rooms.size(), rooms.size() * 2,
+                playerStartX, playerStartY, rooms, generationTime);
+        info.setStairs(lastStairsX, lastStairsY);
+        for (int[] pos : lastSealWalls) {
+            info.addSealWall(pos[0], pos[1]);
+        }
+        for (int[] pos : lastBossDoors) {
+            info.addBossDoorTile(pos[0], pos[1], pos[2] == 1);
+        }
+        return info;
     }
 
     public List<Room> getRooms() {

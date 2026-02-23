@@ -77,8 +77,66 @@ public class GameWindow extends JFrame {
         return selectedInventorySlot;
     }
 
+    public boolean isItemDetailPopupActive() {
+        return itemDetailPopupActive;
+    }
+
     public boolean closeItemDetailPopupIfActive() {
         if (itemDetailPopupActive) {
+            itemDetailPopupActive = false;
+            selectedInventorySlot = -1;
+            selectedEquipmentSlot = -1;
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * 아이템 상세 팝업 단축키 처리 (F=장착/사용, T=버리기, Q=취소)
+     * 
+     * @return true if key was handled
+     */
+    public boolean handleItemPopupKey(int keyCode) {
+        if (!itemDetailPopupActive || currentGame == null)
+            return false;
+
+        com.rogue01.entity.Player player = currentGame.getPlayer();
+        com.rogue01.item.Inventory inventory = player.getInventory();
+        com.rogue01.item.Item item = itemPopupSource == 0
+                ? inventory.getItem(itemPopupSlotIndex)
+                : inventory.getEquippedItem(getSlotType(itemPopupSlotIndex));
+        if (item == null) {
+            itemDetailPopupActive = false;
+            return true;
+        }
+
+        if (keyCode == KeyEvent.VK_Q) {
+            itemDetailPopupActive = false;
+            selectedInventorySlot = -1;
+            selectedEquipmentSlot = -1;
+            return true;
+        }
+        if (keyCode == KeyEvent.VK_T) {
+            if (itemPopupSource == 0) {
+                inventory.removeItem(item);
+            } else {
+                inventory.dropEquippedItem(getSlotType(itemPopupSlotIndex));
+            }
+            itemDetailPopupActive = false;
+            selectedInventorySlot = -1;
+            selectedEquipmentSlot = -1;
+            return true;
+        }
+        if (keyCode == KeyEvent.VK_F) {
+            if (item instanceof com.rogue01.item.Consumable) {
+                inventory.useItem(item, player);
+            } else if (item instanceof com.rogue01.item.Equipment) {
+                if (itemPopupSource == 0) {
+                    inventory.equipItem(item);
+                } else {
+                    inventory.unequipItem(getSlotType(itemPopupSlotIndex));
+                }
+            }
             itemDetailPopupActive = false;
             selectedInventorySlot = -1;
             selectedEquipmentSlot = -1;
@@ -106,11 +164,21 @@ public class GameWindow extends JFrame {
         }
     }
 
+    // 인벤토리/장비 레이아웃 상수 (클릭 영역과 그리기 동기화)
+    private static final int INV_START_X = 260;
+    private static final int EQUIP_START_Y = 75;
+    private static final int INV_START_Y = 165;
+    private static final int EQUIP_SLOT_SIZE = 56;
+    private static final int EQUIP_SPACING = 62;
+    private static final int INV_ITEMS_PER_ROW = 12;
+    private static final int INV_SLOT_SIZE = 38;
+    private static final int INV_SPACING = 42;
+
     private void handleEquipmentSlotClick(int x, int y) {
-        int startX = 260;
-        int startY = 75;
-        int slotSize = 56;
-        int spacing = 62;
+        int startX = INV_START_X;
+        int startY = EQUIP_START_Y;
+        int slotSize = EQUIP_SLOT_SIZE;
+        int spacing = EQUIP_SPACING;
 
         for (int i = 0; i < 7; i++) {
             int slotX = startX + (i * spacing);
@@ -132,20 +200,14 @@ public class GameWindow extends JFrame {
     }
 
     private void handleInventorySlotClick(int x, int y) {
-        int startX = 260;
-        int startY = 165;
-        int itemsPerRow = 12;
-        int slotSize = 38;
-        int spacing = 42;
-
         com.rogue01.item.Inventory inventory = currentGame.getPlayer().getInventory();
         for (int i = 0; i < inventory.getSize(); i++) {
-            int row = i / itemsPerRow;
-            int col = i % itemsPerRow;
-            int slotX = startX + (col * spacing);
-            int slotY = startY + (row * spacing);
+            int row = i / INV_ITEMS_PER_ROW;
+            int col = i % INV_ITEMS_PER_ROW;
+            int slotX = INV_START_X + (col * INV_SPACING);
+            int slotY = INV_START_Y + (row * INV_SPACING);
 
-            if (x >= slotX && x <= slotX + slotSize && y >= slotY && y <= slotY + slotSize) {
+            if (x >= slotX && x <= slotX + INV_SLOT_SIZE && y >= slotY && y <= slotY + INV_SLOT_SIZE) {
                 com.rogue01.item.Item item = inventory.getItem(i);
                 if (item != null) {
                     selectedInventorySlot = i;
@@ -275,7 +337,8 @@ public class GameWindow extends JFrame {
                 g2d.setColor(Color.GRAY);
                 g2d.drawString("Created by SCODA", getWidth() / 2 - 80, getHeight() / 2 + 130);
                 g2d.setColor(Color.WHITE);
-            } else if (currentGame != null && currentGame.getGameState() == com.rogue01.game.GameState.PLAYING) {
+            } else if (currentGame != null && (currentGame.getGameState() == com.rogue01.game.GameState.PLAYING
+                    || currentGame.getGameState() == com.rogue01.game.GameState.BOSS_DOOR_PROMPT)) {
                 // HUD 표시
                 g2d.setFont(new Font("Monospaced", Font.BOLD, 18));
                 com.rogue01.entity.Player player = currentGame.getPlayer();
@@ -287,18 +350,19 @@ public class GameWindow extends JFrame {
 
                 // 플레이어 정보
                 g2d.setFont(new Font("Monospaced", Font.BOLD, 14));
-                g2d.drawString("Lv." + player.getLevel(), 20, 22);
-                g2d.drawString("HP: " + player.getHealth() + "/" + player.getMaxHealth(), 60, 22);
-                g2d.drawString("ATK:" + player.getAttack() + " DEF:" + player.getDefense(), 220, 22);
+                g2d.drawString("Ch." + currentGame.getCurrentChapter() + "-" + currentGame.getCurrentLevel(), 20, 22);
+                g2d.drawString("Lv." + player.getLevel(), 90, 22);
+                g2d.drawString("HP: " + player.getHealth() + "/" + player.getMaxHealth(), 130, 22);
+                g2d.drawString("ATK:" + player.getAttack() + " DEF:" + player.getDefense(), 290, 22);
                 g2d.setColor(Color.LIGHT_GRAY);
-                g2d.drawString("좌표: (" + currentGame.getRelPlayerX() + ", " + currentGame.getRelPlayerY() + ")", 350,
+                g2d.drawString("좌표: (" + currentGame.getRelPlayerX() + ", " + currentGame.getRelPlayerY() + ")", 420,
                         22);
                 g2d.setColor(Color.CYAN);
                 int expNext = player.getExpToNextLevel();
-                g2d.drawString("EXP: " + player.getExperience() + "/" + expNext, 480, 22);
+                g2d.drawString("EXP: " + player.getExperience() + "/" + expNext, 550, 22);
                 g2d.setColor(Color.WHITE);
 
-                // 게임 상태
+                // 적 정보 (EXP와 간격 확보)
                 // g2d.setColor(Color.YELLOW);
                 // g2d.drawString("Game State: PLAYING", 600, 25);
 
@@ -306,7 +370,7 @@ public class GameWindow extends JFrame {
                 g2d.setColor(Color.LIGHT_GRAY);
                 g2d.setFont(new Font("Monospaced", Font.PLAIN, 12));
                 g2d.drawString("Controls:", getWidth() - 200, 15);
-                g2d.drawString("WASD / Arrow Keys: Move", getWidth() - 200, 30);
+                g2d.drawString("WASD: Move | F: 계단/보스방", getWidth() - 200, 30);
                 g2d.drawString("I: Inventory | M: Map", getWidth() - 200, 45);
 
                 // 맵과 플레이어 렌더링
@@ -334,10 +398,23 @@ public class GameWindow extends JFrame {
                     for (int x = 0; x < visibleTilesX && x + cameraX < map.getWidth(); x++) {
                         int mapX = x + cameraX;
                         int mapY = y + cameraY;
-                        char symbol = map.getTileSymbol(mapX, mapY);
+                        com.rogue01.map.Tile tile = map.getTile(mapX, mapY);
+                        if (tile == null)
+                            continue;
+                        char symbol = tile.getSymbol();
 
                         // 타일 타입에 따른 색상 설정
-                        if (symbol == '#') {
+                        if (tile.isStairsDown()) {
+                            g2d.setColor(Color.CYAN); // 계단
+                        } else if (tile.isSealWall()) {
+                            g2d.setColor(new Color(180, 100, 220)); // 보라색 봉인 벽
+                        } else if (tile.isRubble()) {
+                            g2d.setColor(Color.YELLOW); // 노란색 무너진 벽
+                        } else if (tile.isBossDoorMid()) {
+                            g2d.setColor(new Color(200, 180, 80)); // 황금색 중간보스 문
+                        } else if (tile.isBossDoorChapter()) {
+                            g2d.setColor(new Color(200, 80, 80)); // 붉은색 챕터보스 문
+                        } else if (symbol == '#') {
                             g2d.setColor(Color.GRAY); // 벽
                         } else if (symbol == '.') {
                             g2d.setColor(Color.DARK_GRAY); // 바닥
@@ -345,7 +422,6 @@ public class GameWindow extends JFrame {
                             g2d.setColor(Color.WHITE); // 기타
                         }
 
-                        // 타일 그리기
                         g2d.drawString(String.valueOf(symbol), offsetX + x * TILE_SIZE, offsetY + (y + 1) * TILE_SIZE);
                     }
                 }
@@ -398,10 +474,10 @@ public class GameWindow extends JFrame {
                     g2d.drawString(String.valueOf(player.getSymbol()), playerScreenX, playerScreenY);
                 }
 
-                // 적 정보 표시 (HUD에)
+                // 적 정보 표시 (HUD에, EXP와 간격 확보)
                 g2d.setColor(Color.WHITE);
                 g2d.setFont(new Font("Monospaced", Font.PLAIN, 12));
-                g2d.drawString("Enemies: " + currentGame.getEnemies().size(), 600, 25);
+                g2d.drawString("Enemies: " + currentGame.getEnemies().size(), 680, 22);
 
                 // 하단 정보 패널
                 g2d.setColor(new Color(0, 0, 0, 180));
@@ -411,6 +487,17 @@ public class GameWindow extends JFrame {
                 g2d.drawString("ESC: Pause | Q: Quit | R: Restart", 20, getHeight() - 15);
                 g2d.drawString("Map Size: " + map.getWidth() + "x" + map.getHeight(), 400, getHeight() - 15);
                 g2d.drawString("FPS: 60", 600, getHeight() - 15);// 랜더링 속도 계산
+
+                // 보스방 문 프롬프트 오버레이
+                if (currentGame.getGameState() == com.rogue01.game.GameState.BOSS_DOOR_PROMPT) {
+                    g2d.setColor(new Color(0, 0, 0, 150));
+                    g2d.fillRect(0, 0, getWidth(), getHeight());
+                    g2d.setColor(Color.WHITE);
+                    g2d.setFont(new Font("Monospaced", Font.BOLD, 24));
+                    g2d.drawString("보스방에 들어가시겠습니까?", getWidth() / 2 - 150, getHeight() / 2 - 30);
+                    g2d.setFont(new Font("Monospaced", Font.PLAIN, 18));
+                    g2d.drawString("F: 들어가기  |  ESC: 취소", getWidth() / 2 - 120, getHeight() / 2 + 20);
+                }
             } else if (currentGame != null && currentGame.getGameState() == com.rogue01.game.GameState.PAUSED) {
                 // 일시정지 메뉴
                 // 반투명 오버레이
@@ -448,6 +535,13 @@ public class GameWindow extends JFrame {
             } else if (currentGame != null && currentGame.getGameState() == com.rogue01.game.GameState.GAME_OVER) {
                 // 게임 오버 화면
                 drawGameOverScreen(g2d);
+            } else if (currentGame != null
+                    && currentGame.getGameState() == com.rogue01.game.GameState.CHAPTER_TRANSITION) {
+                // 챕터 전환 연출
+                drawChapterTransitionScreen(g2d);
+            } else if (currentGame != null && currentGame.getGameState() == com.rogue01.game.GameState.GAME_CLEAR) {
+                // 게임 클리어 화면
+                drawGameClearScreen(g2d);
             }
         }
 
@@ -480,8 +574,8 @@ public class GameWindow extends JFrame {
             // 조작법
             g2d.setColor(new Color(180, 180, 180));
             g2d.setFont(new Font("Monospaced", Font.PLAIN, 12));
-            g2d.drawString("I/ESC: 닫기 | 클릭: 아이템 상세 | 1-7: 아이템 선택 | U: 소비아이템 사용", getWidth() / 2 - 200,
-                    getHeight() - 15);
+            g2d.drawString("I/ESC: 닫기 | 클릭: 아이템 상세 | 1-7: 선택 | U: 사용 | 팝업: F장착 T버리기 Q취소",
+                    getWidth() / 2 - 220, getHeight() - 15);
         }
 
         private void drawInventoryStatsPanel(Graphics2D g2d, com.rogue01.entity.Player player) {
@@ -536,10 +630,10 @@ public class GameWindow extends JFrame {
         }
 
         private void drawEquipmentSlots(Graphics2D g2d) {
-            int startX = 260;
-            int startY = 80;
-            int slotSize = 56;
-            int spacing = 62;
+            int startX = INV_START_X;
+            int startY = EQUIP_START_Y;
+            int slotSize = EQUIP_SLOT_SIZE;
+            int spacing = EQUIP_SPACING;
 
             com.rogue01.entity.Player player = currentGame.getPlayer();
             com.rogue01.item.Inventory inventory = player.getInventory();
@@ -593,50 +687,58 @@ public class GameWindow extends JFrame {
         }
 
         private void drawInventoryItems(Graphics2D g2d) {
-            int startX = 260;
-            int startY = 178;
-            int itemsPerRow = 12;
-            int slotSize = 38;
-            int spacing = 42;
-
             com.rogue01.entity.Player player = currentGame.getPlayer();
             com.rogue01.item.Inventory inventory = player.getInventory();
 
             g2d.setColor(new Color(180, 185, 200));
             g2d.setFont(new Font("Monospaced", Font.BOLD, 13));
-            g2d.drawString("아이템 (" + inventory.getSize() + "/" + inventory.getMaxSize() + ")", startX, startY - 18);
+            g2d.drawString("아이템 (" + inventory.getSize() + "/" + inventory.getMaxSize() + ")", INV_START_X,
+                    INV_START_Y - 8);
 
             for (int i = 0; i < inventory.getSize(); i++) {
-                int row = i / itemsPerRow;
-                int col = i % itemsPerRow;
-                int x = startX + (col * spacing);
-                int y = startY + (row * spacing);
+                int row = i / INV_ITEMS_PER_ROW;
+                int col = i % INV_ITEMS_PER_ROW;
+                int x = INV_START_X + (col * INV_SPACING);
+                int y = INV_START_Y + (row * INV_SPACING);
 
                 com.rogue01.item.Item item = inventory.getItem(i);
 
                 if (selectedInventorySlot == i) {
                     g2d.setColor(new Color(100, 180, 220));
-                    g2d.fillRoundRect(x, y, slotSize, slotSize, 4, 4);
+                    g2d.fillRoundRect(x, y, INV_SLOT_SIZE, INV_SLOT_SIZE, 4, 4);
                     g2d.setColor(new Color(80, 160, 200));
-                    g2d.drawRoundRect(x, y, slotSize, slotSize, 4, 4);
+                    g2d.drawRoundRect(x, y, INV_SLOT_SIZE, INV_SLOT_SIZE, 4, 4);
                 } else {
                     g2d.setColor(new Color(55, 60, 75));
-                    g2d.fillRoundRect(x, y, slotSize, slotSize, 4, 4);
+                    g2d.fillRoundRect(x, y, INV_SLOT_SIZE, INV_SLOT_SIZE, 4, 4);
                     g2d.setColor(new Color(85, 90, 105));
-                    g2d.drawRoundRect(x, y, slotSize, slotSize, 4, 4);
+                    g2d.drawRoundRect(x, y, INV_SLOT_SIZE, INV_SLOT_SIZE, 4, 4);
                 }
 
                 if (item != null) {
+                    String iconText;
+                    String subText;
+                    if (item instanceof com.rogue01.item.Equipment eq) {
+                        iconText = String.valueOf(eq.getSymbol()) + "+" + eq.getLevel();
+                        subText = eq.getType().getKoreanName();
+                    } else if (item instanceof com.rogue01.item.HealthPotion hp) {
+                        iconText = String.valueOf(item.getSymbol());
+                        subText = hp.getHealAmount() >= 60 ? "체력포션+" : "체력포션";
+                    } else {
+                        iconText = String.valueOf(item.getSymbol());
+                        subText = item.getType().getKoreanName();
+                    }
                     g2d.setColor(Color.WHITE);
-                    g2d.setFont(new Font("Monospaced", Font.BOLD, 16));
-                    g2d.drawString(String.valueOf(item.getSymbol()), x + 10, y + 24);
+                    g2d.setFont(new Font("Monospaced", Font.BOLD, iconText.length() <= 3 ? 14 : 11));
+                    g2d.drawString(iconText, x + (INV_SLOT_SIZE - g2d.getFontMetrics().stringWidth(iconText)) / 2,
+                            y + 22);
                     if (item instanceof com.rogue01.item.Equipment) {
                         g2d.setColor(new Color(255, 210, 100));
                     } else {
                         g2d.setColor(new Color(120, 200, 120));
                     }
                     g2d.setFont(new Font("Monospaced", Font.PLAIN, 9));
-                    g2d.drawString(item.getType().getKoreanName(), x + 2, y + slotSize + 10);
+                    g2d.drawString(subText, x + 2, y + INV_SLOT_SIZE + 10);
                 }
             }
         }
@@ -794,10 +896,52 @@ public class GameWindow extends JFrame {
             // 플레이어 정보
             drawPlayerInfo(g2d);
 
+            // 범례 (계단·보스방·봉인벽)
+            drawMapLegend(g2d);
+
             // 조작법
             g2d.setColor(Color.LIGHT_GRAY);
             g2d.setFont(new Font("Monospaced", Font.PLAIN, 14));
             g2d.drawString("M/ESC: Close Map", getWidth() / 2 - 80, getHeight() - 30);
+        }
+
+        private void drawMapLegend(Graphics2D g2d) {
+            int legX = getWidth() - 180;
+            int legY = 100;
+            int boxSize = 12;
+            g2d.setFont(new Font("Monospaced", Font.PLAIN, 11));
+            g2d.setColor(Color.LIGHT_GRAY);
+            g2d.drawString("범례", legX, legY - 4);
+            legY += 18;
+            g2d.setColor(Color.GREEN);
+            g2d.fillRect(legX, legY - boxSize, boxSize, boxSize);
+            g2d.setColor(Color.WHITE);
+            g2d.drawString("플레이어", legX + boxSize + 6, legY - 2);
+            legY += 18;
+            g2d.setColor(Color.CYAN);
+            g2d.fillRect(legX, legY - boxSize, boxSize, boxSize);
+            g2d.setColor(Color.WHITE);
+            g2d.drawString("계단", legX + boxSize + 6, legY - 2);
+            legY += 18;
+            g2d.setColor(new Color(200, 180, 80));
+            g2d.fillRect(legX, legY - boxSize, boxSize, boxSize);
+            g2d.setColor(Color.WHITE);
+            g2d.drawString("중간보스방", legX + boxSize + 6, legY - 2);
+            legY += 18;
+            g2d.setColor(new Color(200, 80, 80));
+            g2d.fillRect(legX, legY - boxSize, boxSize, boxSize);
+            g2d.setColor(Color.WHITE);
+            g2d.drawString("챕터보스방", legX + boxSize + 6, legY - 2);
+            legY += 18;
+            g2d.setColor(new Color(180, 100, 220));
+            g2d.fillRect(legX, legY - boxSize, boxSize, boxSize);
+            g2d.setColor(Color.WHITE);
+            g2d.drawString("봉인벽", legX + boxSize + 6, legY - 2);
+            legY += 18;
+            g2d.setColor(Color.YELLOW);
+            g2d.fillRect(legX, legY - boxSize, boxSize, boxSize);
+            g2d.setColor(Color.WHITE);
+            g2d.drawString("무너진 벽", legX + boxSize + 6, legY - 2);
         }
 
         private void drawFullMap(Graphics2D g2d) {
@@ -829,10 +973,10 @@ public class GameWindow extends JFrame {
             g2d.setColor(Color.DARK_GRAY);
             g2d.fillRect(mapStartX - 10, mapStartY - 10, scaledMapWidth + 20, scaledMapHeight + 20);
 
-            // 간략한 맵 그리기 (샘플링된 타일만)
+            // 간략한 맵 그리기 (샘플링된 타일만) - 계단·보스방·봉인벽 구분 표시
             for (int y = 0; y < mapHeight; y += sampleInterval) {
                 for (int x = 0; x < mapWidth; x += sampleInterval) {
-                    char symbol = map.getTileSymbol(x, y);
+                    com.rogue01.map.Tile tile = map.getTile(x, y);
                     int pixelX = mapStartX + (int) ((x / sampleInterval) * scale);
                     int pixelY = mapStartY + (int) ((y / sampleInterval) * scale);
                     int tileSize = (int) (scale * 2); // 더 큰 타일 크기
@@ -843,16 +987,29 @@ public class GameWindow extends JFrame {
                         g2d.fillRect(pixelX, pixelY, tileSize, tileSize);
                         g2d.setColor(Color.WHITE);
                         g2d.setFont(new Font("Monospaced", Font.BOLD, tileSize / 2));
-                        g2d.drawString("@", pixelX + tileSize / 4, pixelY + tileSize * 3 / 4);
-                    } else {
-                        // 타일 타입에 따른 색상 (간략화)
-                        if (symbol == '#') {
+                        g2d.drawString("†", pixelX + tileSize / 4, pixelY + tileSize * 3 / 4);
+                    } else if (tile != null) {
+                        // 타일 타입에 따른 색상 (계단·보스방·봉인벽 구분)
+                        if (tile.isStairsDown()) {
+                            g2d.setColor(Color.CYAN); // 계단
+                        } else if (tile.isSealWall()) {
+                            g2d.setColor(new Color(180, 100, 220)); // 보라색 봉인벽
+                        } else if (tile.isRubble()) {
+                            g2d.setColor(Color.YELLOW); // 노란색 무너진 벽
+                        } else if (tile.isBossDoorMid()) {
+                            g2d.setColor(new Color(200, 180, 80)); // 황금색 중간보스 문
+                        } else if (tile.isBossDoorChapter()) {
+                            g2d.setColor(new Color(200, 80, 80)); // 붉은색 챕터보스 문
+                        } else if (tile.getSymbol() == '#') {
                             g2d.setColor(Color.GRAY); // 벽
-                        } else if (symbol == '.') {
+                        } else if (tile.getSymbol() == '.') {
                             g2d.setColor(Color.DARK_GRAY); // 바닥
                         } else {
                             g2d.setColor(Color.WHITE); // 기타
                         }
+                        g2d.fillRect(pixelX, pixelY, tileSize, tileSize);
+                    } else {
+                        g2d.setColor(Color.GRAY);
                         g2d.fillRect(pixelX, pixelY, tileSize, tileSize);
                     }
                 }
@@ -904,6 +1061,28 @@ public class GameWindow extends JFrame {
         /**
          * 게임 오버 화면 그리기
          */
+        private void drawChapterTransitionScreen(Graphics2D g2d) {
+            g2d.setColor(new Color(0, 0, 0, 200));
+            g2d.fillRect(0, 0, getWidth(), getHeight());
+            g2d.setFont(new Font("Monospaced", Font.BOLD, 28));
+            g2d.setColor(Color.YELLOW);
+            g2d.drawString("다음 챕터로 넘어가는중...", getWidth() / 2 - 180, getHeight() / 2 - 20);
+            g2d.setFont(new Font("Monospaced", Font.PLAIN, 16));
+            g2d.setColor(Color.LIGHT_GRAY);
+            g2d.drawString("ENTER: 계속", getWidth() / 2 - 50, getHeight() / 2 + 30);
+        }
+
+        private void drawGameClearScreen(Graphics2D g2d) {
+            g2d.setColor(new Color(0, 0, 0, 200));
+            g2d.fillRect(0, 0, getWidth(), getHeight());
+            g2d.setFont(new Font("Monospaced", Font.BOLD, 48));
+            g2d.setColor(new Color(255, 215, 0));
+            g2d.drawString("GAME CLEAR!", getWidth() / 2 - 140, getHeight() / 2 - 60);
+            g2d.setFont(new Font("Monospaced", Font.PLAIN, 18));
+            g2d.setColor(Color.WHITE);
+            g2d.drawString("R: 재시작  |  M: 메인 메뉴  |  Q: 종료", getWidth() / 2 - 180, getHeight() / 2 + 20);
+        }
+
         private void drawGameOverScreen(Graphics2D g2d) {
             // 반투명 배경
             g2d.setColor(new Color(0, 0, 0, 200));

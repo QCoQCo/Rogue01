@@ -11,6 +11,8 @@ import com.rogue01.item.Item;
 import com.rogue01.item.MapItem;
 import com.rogue01.map.structures.Room;
 import com.rogue01.map.utils.RandomUtils;
+import com.rogue01.util.KeyBinding;
+import com.rogue01.util.KeyBinding.KeyAction;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -42,6 +44,13 @@ public class Game {
     // 난이도
     private GameBalance.Difficulty difficulty;
 
+    // 챕터/레벨 (3챕터 × 3레벨)
+    private int currentChapter; // 1~3
+    private int currentLevel; // 1~3
+    private int midBossDefeatedCount; // 2층 전용: 중간보스 처치 수 (1 이상이면 계단 활성화)
+    /** BOSS_DOOR_PROMPT 시 대기 중인 보스 타입: 1=중간보스, 2=챕터보스 */
+    private int pendingBossDoorType;
+
     public Game() {
         this.gameState = GameState.MENU;
         this.gameLoop = new GameLoop();
@@ -66,6 +75,13 @@ public class Game {
 
         // 난이도 (기본: 보통) - spawnEnemies 등에서 사용하므로 먼저 설정
         this.difficulty = GameBalance.Difficulty.NORMAL;
+
+        // 챕터/레벨 초기화 및 맵 재생성 (계단 배치)
+        this.currentChapter = 1;
+        this.currentLevel = 1;
+        this.midBossDefeatedCount = 0;
+        map.regenerate(Map.MapGeneratorType.HYBRID, 1, 1);
+        player.setPosition(map.getGenerationInfo().getPlayerStartX(), map.getGenerationInfo().getPlayerStartY());
 
         // 적 스폰
         spawnEnemies();
@@ -115,8 +131,15 @@ public class Game {
             case BATTLE:
                 handleBattleState();
                 break;
+            case BOSS_DOOR_PROMPT:
+                handleBossDoorPromptState();
+                break;
             case GAME_OVER:
                 handleGameOverState();
+                break;
+            case CHAPTER_TRANSITION:
+            case GAME_CLEAR:
+                // 입력만 처리, 별도 로직 없음
                 break;
         }
 
@@ -134,20 +157,9 @@ public class Game {
 
     /**
      * 게임 진행 중 상태 처리 (턴제)
+     * 메뉴 키(ESC/I/M)는 InputManager에서 먼저 처리됨
      */
     private void handlePlayingState() {
-        // 메뉴 키는 턴과 무관하게 항상 처리
-        if (gameWindow.getInputHandler().isKeyPressed(java.awt.event.KeyEvent.VK_ESCAPE)) {
-            setGameState(GameState.PAUSED);
-            return;
-        } else if (gameWindow.getInputHandler().isKeyPressed(java.awt.event.KeyEvent.VK_I)) {
-            setGameState(GameState.INVENTORY);
-            return;
-        } else if (gameWindow.getInputHandler().isKeyPressed(java.awt.event.KeyEvent.VK_M)) {
-            setGameState(GameState.MAP_VIEW);
-            return;
-        }
-
         if (turnPhase == TurnPhase.PLAYER_TURN) {
             // 플레이어 턴: 이동 또는 대기
             if (processPlayerTurn()) {
@@ -168,25 +180,35 @@ public class Game {
     private boolean processPlayerTurn() {
         var inputHandler = gameWindow.getInputHandler();
 
-        // 대기 (턴 넘기기) - Space
-        if (inputHandler.isKeyPressed(java.awt.event.KeyEvent.VK_SPACE)) {
-            inputHandler.consumeKey(java.awt.event.KeyEvent.VK_SPACE);
+        // 상호작용 (F키)
+        if (KeyBinding.isPressed(inputHandler, KeyAction.INTERACT)) {
+            KeyBinding.consumeKeys(inputHandler, KeyAction.INTERACT);
+            int doorType = map.getAdjacentBossDoorType(player.getX(), player.getY());
+            if (doorType > 0) {
+                pendingBossDoorType = doorType;
+                setGameState(GameState.BOSS_DOOR_PROMPT);
+                return true;
+            }
+            if (tryUseStairs()) {
+                return true;
+            }
+        }
+
+        // 대기 (턴 넘기기)
+        if (KeyBinding.isPressed(inputHandler, KeyAction.TURN)) {
+            KeyBinding.consumeKeys(inputHandler, KeyAction.TURN);
             return true;
         }
 
         // 이동 처리
         int dx = 0, dy = 0;
-        if (inputHandler.isKeyPressed(java.awt.event.KeyEvent.VK_W)
-                || inputHandler.isKeyPressed(java.awt.event.KeyEvent.VK_UP)) {
+        if (KeyBinding.isPressed(inputHandler, KeyAction.MOVE_UP)) {
             dy = -1;
-        } else if (inputHandler.isKeyPressed(java.awt.event.KeyEvent.VK_S)
-                || inputHandler.isKeyPressed(java.awt.event.KeyEvent.VK_DOWN)) {
+        } else if (KeyBinding.isPressed(inputHandler, KeyAction.MOVE_DOWN)) {
             dy = 1;
-        } else if (inputHandler.isKeyPressed(java.awt.event.KeyEvent.VK_A)
-                || inputHandler.isKeyPressed(java.awt.event.KeyEvent.VK_LEFT)) {
+        } else if (KeyBinding.isPressed(inputHandler, KeyAction.MOVE_LEFT)) {
             dx = -1;
-        } else if (inputHandler.isKeyPressed(java.awt.event.KeyEvent.VK_D)
-                || inputHandler.isKeyPressed(java.awt.event.KeyEvent.VK_RIGHT)) {
+        } else if (KeyBinding.isPressed(inputHandler, KeyAction.MOVE_RIGHT)) {
             dx = 1;
         }
 
@@ -194,15 +216,10 @@ public class Game {
             int targetX = player.getX() + dx;
             int targetY = player.getY() + dy;
 
-            // 이동 키 소비
-            inputHandler.consumeKey(java.awt.event.KeyEvent.VK_W);
-            inputHandler.consumeKey(java.awt.event.KeyEvent.VK_UP);
-            inputHandler.consumeKey(java.awt.event.KeyEvent.VK_S);
-            inputHandler.consumeKey(java.awt.event.KeyEvent.VK_DOWN);
-            inputHandler.consumeKey(java.awt.event.KeyEvent.VK_A);
-            inputHandler.consumeKey(java.awt.event.KeyEvent.VK_LEFT);
-            inputHandler.consumeKey(java.awt.event.KeyEvent.VK_D);
-            inputHandler.consumeKey(java.awt.event.KeyEvent.VK_RIGHT);
+            KeyBinding.consumeKeys(inputHandler, KeyAction.MOVE_UP);
+            KeyBinding.consumeKeys(inputHandler, KeyAction.MOVE_DOWN);
+            KeyBinding.consumeKeys(inputHandler, KeyAction.MOVE_LEFT);
+            KeyBinding.consumeKeys(inputHandler, KeyAction.MOVE_RIGHT);
 
             // 목표 타일에 적이 있으면 전투 시작
             Enemy enemyAtTarget = getEnemyAt(targetX, targetY);
@@ -232,6 +249,31 @@ public class Game {
     }
 
     /**
+     * 계단 사용 시도 (플레이어가 계단 위에 있을 때 F키)
+     * 
+     * @return true if acted (used stairs or tried)
+     */
+    private boolean tryUseStairs() {
+        int px = player.getX();
+        int py = player.getY();
+        com.rogue01.map.Tile tile = map.getTile(px, py);
+        if (tile == null || !tile.isStairsDown()) {
+            return false; // 계단 위가 아님
+        }
+
+        // 2층: 중간보스 1마리 이상 처치해야 계단 활성화
+        if (currentLevel == 2 && midBossDefeatedCount < 1) {
+            return false; // 계단 봉인됨 (메시지는 UI에서 처리 가능)
+        }
+
+        // 1층→2층, 2층→3층 (3층에는 계단 없음, 보스 처치로 진행)
+        currentLevel++;
+        midBossDefeatedCount = 0;
+        advanceToNextFloor();
+        return true;
+    }
+
+    /**
      * 지정된 위치에 있는 적 반환
      */
     private Enemy getEnemyAt(int x, int y) {
@@ -257,9 +299,26 @@ public class Game {
                 if (result == BattleManager.BattleResult.VICTORY) {
                     battleManager.processRewards();
                     dropItemFromEnemy(battleManager.getEnemy(), battleManager.getDropX(), battleManager.getDropY());
-                    // 전투 중인 적 제거
                     enemies.remove(battleManager.getEnemy());
                     killCount++;
+
+                    Enemy defeatedEnemy = battleManager.getEnemy();
+
+                    // 2층: 중간보스 처치 시에만 계단 봉인 해제
+                    if (currentLevel == 2 && defeatedEnemy.getType().isMidBoss()) {
+                        incrementMidBossDefeatedCount();
+                    }
+
+                    // 3층: 챕터 보스 처치 시 → 챕터 전환 또는 게임 클리어
+                    if (currentLevel == 3 && defeatedEnemy.getType().isChapterBoss()) {
+                        if (currentChapter == 3) {
+                            setGameState(GameState.GAME_CLEAR);
+                        } else {
+                            setGameState(GameState.CHAPTER_TRANSITION);
+                        }
+                        battleManager = null;
+                        return;
+                    }
                 } else if (result == BattleManager.BattleResult.DEFEAT) {
                     // 게임 오버
                     setGameState(GameState.GAME_OVER);
@@ -390,30 +449,59 @@ public class Game {
     }
 
     /**
-     * 일시정지 상태 처리
+     * 보스방 문 프롬프트: F=진입(전투 시작), ESC=취소
+     */
+    private void handleBossDoorPromptState() {
+        if (KeyBinding.isPressed(gameWindow.getInputHandler(), KeyAction.INTERACT)) {
+            KeyBinding.consumeKeys(gameWindow.getInputHandler(), KeyAction.INTERACT);
+            Enemy boss = createBossFromDoorType(pendingBossDoorType);
+            if (boss != null) {
+                int dropX = player.getX();
+                int dropY = player.getY();
+                startBattle(boss, dropX, dropY);
+            }
+        } else if (KeyBinding.isPressed(gameWindow.getInputHandler(), KeyAction.PAUSE)
+                || KeyBinding.isPressed(gameWindow.getInputHandler(), KeyAction.CLOSE)) {
+            KeyBinding.consumeKeys(gameWindow.getInputHandler(), KeyAction.PAUSE);
+            KeyBinding.consumeKeys(gameWindow.getInputHandler(), KeyAction.CLOSE);
+            setGameState(GameState.PLAYING);
+        }
+    }
+
+    /**
+     * 보스 문 타입에 따른 보스 생성 (맵에 스폰하지 않음, 전투용)
+     */
+    private Enemy createBossFromDoorType(int doorType) {
+        EnemyType type = doorType == 2 ? EnemyType.DRAGON : EnemyType.TROLL;
+        double scale = GameBalance.getEnemyStatScale(currentChapter, currentLevel);
+        return new Enemy(0, 0, type, scale);
+    }
+
+    /**
+     * 일시정지 상태 처리 (InputManager에서 ESC 처리, 여기서는 추가 로직만)
      */
     private void handlePausedState() {
-        if (gameWindow.getInputHandler().isKeyPressed(java.awt.event.KeyEvent.VK_ESCAPE)) {
-            setGameState(GameState.PLAYING);
+        if (KeyBinding.isPressed(gameWindow.getInputHandler(), KeyAction.PAUSE)) {
+            resumeFromPause();
         }
     }
 
     /**
-     * 인벤토리 상태 처리
+     * 인벤토리 상태 처리 (InputManager에서 I/ESC 처리)
      */
     private void handleInventoryState() {
-        if (gameWindow.getInputHandler().isKeyPressed(java.awt.event.KeyEvent.VK_I) ||
-                gameWindow.getInputHandler().isKeyPressed(java.awt.event.KeyEvent.VK_ESCAPE)) {
+        if (KeyBinding.isPressed(gameWindow.getInputHandler(), KeyAction.INVENTORY)
+                || KeyBinding.isPressed(gameWindow.getInputHandler(), KeyAction.CLOSE)) {
             setGameState(GameState.PLAYING);
         }
     }
 
     /**
-     * 맵 뷰 상태 처리
+     * 맵 뷰 상태 처리 (InputManager에서 M/ESC 처리)
      */
     private void handleMapViewState() {
-        if (gameWindow.getInputHandler().isKeyPressed(java.awt.event.KeyEvent.VK_M) ||
-                gameWindow.getInputHandler().isKeyPressed(java.awt.event.KeyEvent.VK_ESCAPE)) {
+        if (KeyBinding.isPressed(gameWindow.getInputHandler(), KeyAction.MAP_VIEW)
+                || KeyBinding.isPressed(gameWindow.getInputHandler(), KeyAction.CLOSE)) {
             setGameState(GameState.PLAYING);
         }
     }
@@ -429,8 +517,8 @@ public class Game {
      * 게임 재시작
      */
     public void restartGame() {
-        // 맵 재생성
-        map.regenerate(Map.MapGeneratorType.HYBRID);
+        // 맵 재생성 (챕터 1-1로 초기화)
+        map.regenerate(Map.MapGeneratorType.HYBRID, 1, 1);
 
         // 플레이어 초기화
         int startX = map.getGenerationInfo().getPlayerStartX();
@@ -452,6 +540,41 @@ public class Game {
         killCount = 0;
         gameStartTime = System.currentTimeMillis();
 
+        turnPhase = TurnPhase.PLAYER_TURN;
+
+        // 챕터/레벨 초기화
+        currentChapter = 1;
+        currentLevel = 1;
+        midBossDefeatedCount = 0;
+
+        setGameState(GameState.PLAYING);
+    }
+
+    /**
+     * 챕터 전환 연출 완료 후 다음 챕터 1층으로 이동
+     */
+    public void finishChapterTransition() {
+        currentChapter++;
+        currentLevel = 1;
+        midBossDefeatedCount = 0;
+        advanceToNextFloor();
+    }
+
+    /**
+     * 다음 층으로 이동 (맵 재생성, 플레이어 유지)
+     */
+    public void advanceToNextFloor() {
+        map.regenerate(Map.MapGeneratorType.HYBRID, currentChapter, currentLevel);
+
+        int startX = map.getGenerationInfo().getPlayerStartX();
+        int startY = map.getGenerationInfo().getPlayerStartY();
+        player.setPosition(startX, startY);
+
+        enemies.clear();
+        mapItems.clear();
+        spawnEnemies();
+
+        battleManager = null;
         turnPhase = TurnPhase.PLAYER_TURN;
 
         setGameState(GameState.PLAYING);
@@ -490,7 +613,6 @@ public class Game {
     private void spawnEnemies() {
         List<Room> rooms = map.getRooms();
         if (rooms.isEmpty()) {
-            // 방이 없으면 랜덤 위치에 스폰
             spawnEnemiesRandomly();
             return;
         }
@@ -519,15 +641,17 @@ public class Game {
                     int spawnX = randomUtils.nextInt(room.getX() + 1, room.getX() + room.getWidth() - 2);
                     int spawnY = randomUtils.nextInt(room.getY() + 1, room.getY() + room.getHeight() - 2);
                     if (map.isWalkable(spawnX, spawnY) && getEnemyAt(spawnX, spawnY) == null) {
-                        EnemyType enemyType = getRandomEnemyType();
-                        Enemy enemy = new Enemy(spawnX, spawnY, enemyType);
-                        enemies.add(enemy);
+                        EnemyType enemyType = GameBalance.rollEnemyType(
+                                randomUtils.getRandom(), currentChapter, currentLevel);
+                        double scale = GameBalance.getEnemyStatScale(currentChapter, currentLevel);
+                        enemies.add(new Enemy(spawnX, spawnY, enemyType, scale));
                         break;
                     }
                 }
             }
         }
 
+        // 보스는 보스방 문 진입 시에만 스폰 (맵에 직접 스폰하지 않음)
         System.out.println("Spawned " + enemies.size() + " enemies");
     }
 
@@ -550,9 +674,10 @@ public class Game {
                         Math.pow(x - playerStartX, 2) + Math.pow(y - playerStartY, 2));
 
                 if (map.isWalkable(x, y) && distance >= GameBalance.SPAWN_MIN_DISTANCE && getEnemyAt(x, y) == null) {
-                    EnemyType enemyType = getRandomEnemyType();
-                    Enemy enemy = new Enemy(x, y, enemyType);
-                    enemies.add(enemy);
+                    EnemyType enemyType = GameBalance.rollEnemyType(
+                            randomUtils.getRandom(), currentChapter, currentLevel);
+                    double scale = GameBalance.getEnemyStatScale(currentChapter, currentLevel);
+                    enemies.add(new Enemy(x, y, enemyType, scale));
                     break;
                 }
                 attempts++;
@@ -560,27 +685,6 @@ public class Game {
         }
     }
 
-    /**
-     * 랜덤 적 타입 선택 (약한 적 위주)
-     */
-    private EnemyType getRandomEnemyType() {
-        double rand = randomUtils.getRandom().nextDouble();
-        if (rand < GameBalance.SPAWN_GOBLIN) {
-            return EnemyType.GOBLIN;
-        } else if (rand < GameBalance.SPAWN_SKELETON) {
-            return EnemyType.SKELETON;
-        } else if (rand < GameBalance.SPAWN_ORC) {
-            return EnemyType.ORC;
-        } else if (rand < GameBalance.SPAWN_TROLL) {
-            return EnemyType.TROLL;
-        } else {
-            return EnemyType.DRAGON;
-        }
-    }
-
-    /**
-     * 적 업데이트
-     */
     /**
      * 사망한 적 제거
      */
@@ -645,6 +749,24 @@ public class Game {
 
     public void setDifficulty(GameBalance.Difficulty difficulty) {
         this.difficulty = difficulty != null ? difficulty : GameBalance.Difficulty.NORMAL;
+    }
+
+    public int getCurrentChapter() {
+        return currentChapter;
+    }
+
+    public int getCurrentLevel() {
+        return currentLevel;
+    }
+
+    public int getMidBossDefeatedCount() {
+        return midBossDefeatedCount;
+    }
+
+    /** 중간보스 처치 시 호출 (2층 계단 봉인 해제) */
+    public void incrementMidBossDefeatedCount() {
+        midBossDefeatedCount++;
+        map.breakStairsSeal();
     }
 
     /**

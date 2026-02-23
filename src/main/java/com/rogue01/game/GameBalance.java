@@ -67,12 +67,45 @@ public class GameBalance {
     public static final int ROOM_ENEMY_DIVISOR = 120; // 방 넓이 / 이 값 = 적 수
     public static final int RANDOM_SPAWN_DIVISOR = 450; // 맵 넓이 / 이 값 = 적 수
 
-    // === 적 등장 확률 (누적) ===
+    // === 적 등장 확률 (누적, 1층 기준) ===
     public static final double SPAWN_GOBLIN = 0.55;
     public static final double SPAWN_SKELETON = 0.82;
     public static final double SPAWN_ORC = 0.94;
     public static final double SPAWN_TROLL = 0.98;
     // DRAGON = 나머지 2%
+
+    /**
+     * 층/챕터별 적 스탯 배율 (1-1=1.0, 3-3≈1.5)
+     */
+    public static double getEnemyStatScale(int chapter, int level) {
+        double scale = 1.0;
+        scale += (chapter - 1) * 0.12;  // 챕터당 +12%
+        scale += (level - 1) * 0.08;   // 층당 +8%
+        return Math.max(1.0, scale);
+    }
+
+    /**
+     * 층/챕터별 랜덤 적 타입 (높은 층·챕터일수록 강한 적 비율 증가)
+     */
+    public static com.rogue01.entity.EnemyType rollEnemyType(java.util.Random rng, int chapter, int level) {
+        double[] w = getEnemySpawnWeights(chapter, level);
+        double roll = rng.nextDouble();
+        if (roll < w[0]) return com.rogue01.entity.EnemyType.GOBLIN;
+        if (roll < w[0] + w[1]) return com.rogue01.entity.EnemyType.SKELETON;
+        if (roll < w[0] + w[1] + w[2]) return com.rogue01.entity.EnemyType.ORC;
+        if (roll < w[0] + w[1] + w[2] + w[3]) return com.rogue01.entity.EnemyType.TROLL;
+        return com.rogue01.entity.EnemyType.DRAGON;
+    }
+
+    private static double[] getEnemySpawnWeights(int chapter, int level) {
+        double g = Math.max(0.15, 0.55 - (level - 1) * 0.08 - (chapter - 1) * 0.05);
+        double s = Math.max(0.15, 0.27 - (level - 1) * 0.03);
+        double o = Math.max(0.08, 0.12 + (level - 1) * 0.04);
+        double t = Math.max(0.03, 0.04 + (level - 1) * 0.05 + (chapter - 1) * 0.02);
+        double d = Math.max(0.01, 0.02 + (level - 1) * 0.02 + (chapter - 1) * 0.01);
+        double sum = g + s + o + t + d;
+        return new double[] { g / sum, s / sum, o / sum, t / sum, d / sum };
+    }
 
     /**
      * 난이도별 드롭 확률 배율
