@@ -78,6 +78,15 @@ public class Map {
     }
 
     /**
+     * 챕터/레벨 지정하여 맵 재생성 (계단·보스방 배치)
+     */
+    public void regenerate(MapGeneratorType generatorType, int chapter, int level) {
+        this.generator = createGenerator(generatorType);
+        generator.setChapterLevel(chapter, level);
+        generateMap();
+    }
+
+    /**
      * 특정 시드로 맵 재생성
      */
     public void regenerate(long seed) {
@@ -91,6 +100,18 @@ public class Map {
      */
     public void update() {
         // 맵 업데이트 로직
+    }
+
+    /**
+     * 2층 계단 봉인벽 무너뜨리기 (중간보스 1마리 이상 처치 시)
+     */
+    public void breakStairsSeal() {
+        for (int[] pos : generationInfo.getSealWallPositions()) {
+            int x = pos[0], y = pos[1];
+            if (isInBounds(x, y)) {
+                tiles[x][y].breakSeal();
+            }
+        }
     }
 
     /**
@@ -149,6 +170,25 @@ public class Map {
 
     public MapGenerationInfo getGenerationInfo() {
         return generationInfo;
+    }
+
+    /**
+     * 플레이어가 보스 문에 인접해 있는지 확인
+     * @return 1=중간보스, 2=챕터보스, 0=인접 아님
+     */
+    public int getAdjacentBossDoorType(int px, int py) {
+        int[] dx = {-1, 1, 0, 0};
+        int[] dy = {0, 0, -1, 1};
+        for (int i = 0; i < 4; i++) {
+            int nx = px + dx[i];
+            int ny = py + dy[i];
+            if (isInBounds(nx, ny)) {
+                Tile t = tiles[nx][ny];
+                if (t != null && t.isBossDoorChapter()) return 2;
+                if (t != null && t.isBossDoorMid()) return 1;
+            }
+        }
+        return 0;
     }
 
     public MapGenerator getGenerator() {

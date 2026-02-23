@@ -21,6 +21,11 @@ public interface MapGenerator {
     void setSeed(long seed);
 
     /**
+     * 챕터/레벨 설정 (계단·보스방 배치용). 미지원 생성기는 무시.
+     */
+    default void setChapterLevel(int chapter, int level) {}
+
+    /**
      * 생성된 맵의 정보를 반환합니다.
      * 
      * @return 맵 생성 정보

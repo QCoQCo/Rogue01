@@ -49,4 +49,14 @@ public enum EnemyType {
     public int getExperience() {
         return experience;
     }
+
+    /** 2층 중간보스 여부 (계단 봉인 해제에 반영). 향후 6종 추가 시 확장 */
+    public boolean isMidBoss() {
+        return this == TROLL;
+    }
+
+    /** 3층 챕터 보스 여부 (1-3/2-3→챕터 전환, 3-3→게임 클리어). 향후 3종 추가 시 확장 */
+    public boolean isChapterBoss() {
+        return this == DRAGON;
+    }
 }

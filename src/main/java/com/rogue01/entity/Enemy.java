@@ -20,13 +20,20 @@ public class Enemy extends Entity {
     private int lastPlayerY;
 
     public Enemy(int x, int y, EnemyType enemyType) {
+        this(x, y, enemyType, 1.0);
+    }
+
+    /**
+     * @param statScale 층/챕터별 스탯 배율 (GameBalance.getEnemyStatScale)
+     */
+    public Enemy(int x, int y, EnemyType enemyType, double statScale) {
         super(x, y, enemyType.getSymbol(), enemyType.getKoreanName());
         this.enemyType = enemyType;
-        this.maxHealth = enemyType.getMaxHealth();
+        this.maxHealth = Math.max(1, (int) (enemyType.getMaxHealth() * statScale));
         this.health = maxHealth;
-        this.attack = enemyType.getAttack();
-        this.defense = enemyType.getDefense();
-        this.experience = enemyType.getExperience();
+        this.attack = Math.max(1, (int) (enemyType.getAttack() * statScale));
+        this.defense = Math.max(0, (int) (enemyType.getDefense() * statScale));
+        this.experience = Math.max(1, (int) (enemyType.getExperience() * statScale));
         this.randomUtils = new RandomUtils();
         this.hasSeenPlayer = false;
     }
@@ -175,6 +182,11 @@ public class Enemy extends Entity {
 
     // Getters
     public EnemyType getEnemyType() {
+        return enemyType;
+    }
+
+    /** getEnemyType()와 동일 (Item.getType() 패턴 통일) */
+    public EnemyType getType() {
         return enemyType;
     }
 

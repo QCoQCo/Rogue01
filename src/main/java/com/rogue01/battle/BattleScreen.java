@@ -4,6 +4,8 @@ import com.rogue01.entity.Player;
 import com.rogue01.entity.Enemy;
 import com.rogue01.item.HealthPotion;
 import com.rogue01.item.Item;
+import com.rogue01.util.KeyBinding;
+import com.rogue01.util.KeyBinding.KeyAction;
 import java.awt.*;
 import java.awt.event.KeyEvent;
 import java.util.List;
@@ -269,7 +271,7 @@ public class BattleScreen {
         int logX = 50;
         int logY = 50;
         int logWidth = 500; // 너비를 줄여서 적 정보 패널과 겹치지 않도록
-        int logHeight = 60; // 높이를 크게 줄임 (3개 메시지만 표시)
+        int logHeight = 140; // 8줄 표시 (5줄 추가)
 
         // 로그 배경
         g2d.setColor(new Color(0, 0, 0, 180));
@@ -282,12 +284,13 @@ public class BattleScreen {
         g2d.setColor(Color.YELLOW);
         g2d.drawString("전투 로그", logX + 10, logY + 18);
 
-        // 로그 메시지들 (최근 3개만 표시)
+        // 로그 메시지들 (최근 8개 표시)
         g2d.setFont(new Font("Monospaced", Font.PLAIN, 11));
         g2d.setColor(Color.WHITE);
 
         java.util.List<String> logs = battleManager.getBattleLog();
-        int startIndex = Math.max(0, logs.size() - 3); // 최근 3개만 표시
+        int maxLines = 8;
+        int startIndex = Math.max(0, logs.size() - maxLines);
 
         for (int i = startIndex; i < logs.size(); i++) {
             int y = logY + 35 + (i - startIndex) * 18;
@@ -355,27 +358,13 @@ public class BattleScreen {
             return;
         }
 
-        switch (e.getKeyCode()) {
-            case KeyEvent.VK_LEFT:
-            case KeyEvent.VK_A:
-                selectedActionIndex = (selectedActionIndex - 1 + actionMenu.length) % actionMenu.length;
-                e.consume();
-                break;
-            case KeyEvent.VK_RIGHT:
-            case KeyEvent.VK_D:
-                selectedActionIndex = (selectedActionIndex + 1) % actionMenu.length;
-                e.consume();
-                break;
-            case KeyEvent.VK_UP:
-                selectedActionIndex = (selectedActionIndex - 1 + actionMenu.length) % actionMenu.length;
-                e.consume();
-                break;
-            case KeyEvent.VK_DOWN:
-                selectedActionIndex = (selectedActionIndex + 1) % actionMenu.length;
-                e.consume();
-                break;
-            case KeyEvent.VK_ENTER:
-            case KeyEvent.VK_SPACE:
+        if (KeyBinding.matches(e, KeyAction.BATTLE_MENU_LEFT) || KeyBinding.matches(e, KeyAction.BATTLE_MENU_UP)) {
+            selectedActionIndex = (selectedActionIndex - 1 + actionMenu.length) % actionMenu.length;
+            e.consume();
+        } else if (KeyBinding.matches(e, KeyAction.BATTLE_MENU_RIGHT) || KeyBinding.matches(e, KeyAction.BATTLE_MENU_DOWN)) {
+            selectedActionIndex = (selectedActionIndex + 1) % actionMenu.length;
+            e.consume();
+        } else if (KeyBinding.matches(e, KeyAction.BATTLE_CONFIRM)) {
                 if (selectedActionIndex == 2) {
                     // 아이템: 서브메뉴 열기
                     List<Item> consumables = battleManager.getConsumables();
@@ -390,40 +379,31 @@ public class BattleScreen {
                 } else {
                     executeSelectedAction();
                 }
-                e.consume();
-                break;
+            e.consume();
         }
     }
 
     private void handleItemSubMenuInput(KeyEvent e) {
         List<Item> consumables = battleManager.getConsumables();
 
-        switch (e.getKeyCode()) {
-            case KeyEvent.VK_ESCAPE:
+        if (KeyBinding.matches(e, KeyAction.CLOSE)) {
+            itemSubMenuActive = false;
+            e.consume();
+        } else if (KeyBinding.matches(e, KeyAction.BATTLE_MENU_UP)) {
+            if (!consumables.isEmpty()) {
+                selectedConsumableIndex = (selectedConsumableIndex - 1 + consumables.size()) % consumables.size();
+            }
+            e.consume();
+        } else if (KeyBinding.matches(e, KeyAction.BATTLE_MENU_DOWN)) {
+            if (!consumables.isEmpty()) {
+                selectedConsumableIndex = (selectedConsumableIndex + 1) % consumables.size();
+            }
+            e.consume();
+        } else if (KeyBinding.matches(e, KeyAction.BATTLE_CONFIRM)) {
+            if (!consumables.isEmpty() && battleManager.executeUseConsumable(selectedConsumableIndex)) {
                 itemSubMenuActive = false;
-                e.consume();
-                break;
-            case KeyEvent.VK_UP:
-            case KeyEvent.VK_W:
-                if (!consumables.isEmpty()) {
-                    selectedConsumableIndex = (selectedConsumableIndex - 1 + consumables.size()) % consumables.size();
-                }
-                e.consume();
-                break;
-            case KeyEvent.VK_DOWN:
-            case KeyEvent.VK_S:
-                if (!consumables.isEmpty()) {
-                    selectedConsumableIndex = (selectedConsumableIndex + 1) % consumables.size();
-                }
-                e.consume();
-                break;
-            case KeyEvent.VK_ENTER:
-            case KeyEvent.VK_SPACE:
-                if (!consumables.isEmpty() && battleManager.executeUseConsumable(selectedConsumableIndex)) {
-                    itemSubMenuActive = false;
-                }
-                e.consume();
-                break;
+            }
+            e.consume();
         }
     }
 
