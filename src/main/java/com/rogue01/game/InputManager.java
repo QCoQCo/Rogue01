@@ -1,11 +1,13 @@
 package com.rogue01.game;
 
 import com.rogue01.util.InputHandler;
+import com.rogue01.util.KeyBinding;
+import com.rogue01.util.KeyBinding.KeyAction;
 import com.rogue01.entity.Player;
-import java.awt.event.KeyEvent;
 
 /**
  * 게임 입력 처리를 담당하는 매니저 클래스
+ * 키 바인딩은 {@link KeyBinding}에서 중앙 관리
  */
 public class InputManager {
     private InputHandler inputHandler;
@@ -47,8 +49,17 @@ public class InputManager {
             case BATTLE:
                 handleBattleInput();
                 break;
+            case BOSS_DOOR_PROMPT:
+                // Game에서 F/ESC 처리
+                break;
             case GAME_OVER:
                 handleGameOverInput();
+                break;
+            case CHAPTER_TRANSITION:
+                handleChapterTransitionInput();
+                break;
+            case GAME_CLEAR:
+                handleGameClearInput();
                 break;
         }
     }
@@ -57,13 +68,21 @@ public class InputManager {
      * 메뉴 상태 입력 처리
      */
     private void handleMenuInput() {
-        if (inputHandler.isKeyPressed(KeyEvent.VK_ENTER)) {
-            // 게임 시작 신호 - 게임 상태를 PLAYING으로 변경
+        if (KeyBinding.isPressed(inputHandler, KeyAction.START_GAME)) {
             if (game != null) {
                 game.setGameState(GameState.PLAYING);
             }
             inputHandler.clearKeys();
-        } else if (inputHandler.isKeyPressed(KeyEvent.VK_Q)) {
+        } else if (KeyBinding.isPressed(inputHandler, KeyAction.DIFFICULTY_EASY) && game != null) {
+            game.setDifficulty(com.rogue01.game.GameBalance.Difficulty.EASY);
+            inputHandler.clearKeys();
+        } else if (KeyBinding.isPressed(inputHandler, KeyAction.DIFFICULTY_NORMAL) && game != null) {
+            game.setDifficulty(com.rogue01.game.GameBalance.Difficulty.NORMAL);
+            inputHandler.clearKeys();
+        } else if (KeyBinding.isPressed(inputHandler, KeyAction.DIFFICULTY_HARD) && game != null) {
+            game.setDifficulty(com.rogue01.game.GameBalance.Difficulty.HARD);
+            inputHandler.clearKeys();
+        } else if (KeyBinding.isPressed(inputHandler, KeyAction.QUIT)) {
             System.exit(0);
         }
     }
@@ -72,20 +91,17 @@ public class InputManager {
      * 게임 진행 중 입력 처리
      */
     private void handlePlayingInput() {
-        if (inputHandler.isKeyPressed(KeyEvent.VK_ESCAPE)) {
-            // 일시정지 신호
+        if (KeyBinding.isPressed(inputHandler, KeyAction.PAUSE)) {
             if (game != null) {
                 game.setGameState(GameState.PAUSED);
             }
             inputHandler.clearKeys();
-        } else if (inputHandler.isKeyPressed(KeyEvent.VK_I)) {
-            // 인벤토리 창 신호
+        } else if (KeyBinding.isPressed(inputHandler, KeyAction.INVENTORY)) {
             if (game != null) {
                 game.setGameState(GameState.INVENTORY);
             }
             inputHandler.clearKeys();
-        } else if (inputHandler.isKeyPressed(KeyEvent.VK_M)) {
-            // 맵 뷰 신호
+        } else if (KeyBinding.isPressed(inputHandler, KeyAction.MAP_VIEW)) {
             if (game != null) {
                 game.setGameState(GameState.MAP_VIEW);
             }
@@ -99,13 +115,12 @@ public class InputManager {
      * 일시정지 상태 입력 처리
      */
     private void handlePausedInput() {
-        if (inputHandler.isKeyPressed(KeyEvent.VK_ESCAPE)) {
-            // 게임 재개 (이전 상태로: PLAYING 또는 BATTLE)
+        if (KeyBinding.isPressed(inputHandler, KeyAction.PAUSE)) {
             if (game != null) {
                 game.resumeFromPause();
             }
             inputHandler.clearKeys();
-        } else if (inputHandler.isKeyPressed(KeyEvent.VK_Q)) {
+        } else if (KeyBinding.isPressed(inputHandler, KeyAction.QUIT)) {
             System.exit(0);
         }
     }
@@ -114,8 +129,19 @@ public class InputManager {
      * 인벤토리 상태 입력 처리
      */
     private void handleInventoryInput() {
-        if (inputHandler.isKeyPressed(KeyEvent.VK_I) ||
-                inputHandler.isKeyPressed(KeyEvent.VK_ESCAPE)) {
+        // 아이템 상세 팝업 단축키 (F=장착/사용, T=버리기, Q=취소)
+        if (game != null && game.getGameWindow().isItemDetailPopupActive()) {
+            int key = KeyBinding.isPressed(inputHandler, KeyAction.ITEM_CANCEL) ? KeyBinding.getPrimaryKey(KeyAction.ITEM_CANCEL)
+                    : KeyBinding.isPressed(inputHandler, KeyAction.ITEM_DROP) ? KeyBinding.getPrimaryKey(KeyAction.ITEM_DROP)
+                            : KeyBinding.isPressed(inputHandler, KeyAction.ITEM_EQUIP) ? KeyBinding.getPrimaryKey(KeyAction.ITEM_EQUIP)
+                                    : 0;
+            if (key != 0 && game.getGameWindow().handleItemPopupKey(key)) {
+                inputHandler.clearKeys();
+                return;
+            }
+        }
+
+        if (KeyBinding.isPressed(inputHandler, KeyAction.INVENTORY) || KeyBinding.isPressed(inputHandler, KeyAction.CLOSE)) {
             if (game != null) {
                 if (game.closeItemDetailPopupIfActive()) {
                     inputHandler.clearKeys();
@@ -124,12 +150,11 @@ public class InputManager {
                 game.setGameState(GameState.PLAYING);
             }
             inputHandler.clearKeys();
-        } else if (inputHandler.isKeyPressed(KeyEvent.VK_U)) {
-            // U: 선택한 소비 아이템 사용
+        } else if (KeyBinding.isPressed(inputHandler, KeyAction.ITEM_USE)) {
             if (game != null) {
                 int slot = game.getGameWindow().getSelectedInventorySlot();
                 if (game.useConsumableAtSlot(slot)) {
-                    inputHandler.consumeKey(KeyEvent.VK_U);
+                    KeyBinding.consumeKeys(inputHandler, KeyAction.ITEM_USE);
                 }
             }
             inputHandler.clearKeys();
@@ -142,9 +167,7 @@ public class InputManager {
      * 맵 뷰 상태 입력 처리
      */
     private void handleMapViewInput() {
-        if (inputHandler.isKeyPressed(KeyEvent.VK_M) ||
-                inputHandler.isKeyPressed(KeyEvent.VK_ESCAPE)) {
-            // 게임으로 돌아가기 신호
+        if (KeyBinding.isPressed(inputHandler, KeyAction.MAP_VIEW) || KeyBinding.isPressed(inputHandler, KeyAction.CLOSE)) {
             if (game != null) {
                 game.setGameState(GameState.PLAYING);
             }
@@ -156,8 +179,7 @@ public class InputManager {
      * 전투 상태 입력 처리
      */
     private void handleBattleInput() {
-        if (inputHandler.isKeyPressed(KeyEvent.VK_ESCAPE)) {
-            // 일시정지 화면으로
+        if (KeyBinding.isPressed(inputHandler, KeyAction.PAUSE)) {
             if (game != null) {
                 game.setGameState(GameState.PAUSED);
             }
@@ -167,21 +189,48 @@ public class InputManager {
     }
 
     /**
-     * 게임 오버 상태 입력 처리
+     * 챕터 전환 연출 상태 입력 처리 ("다음 챕터로 넘어가는중...")
      */
-    private void handleGameOverInput() {
-        if (game == null) return;
-        
-        if (inputHandler.isKeyPressed(KeyEvent.VK_R)) {
-            // 재시작
+    private void handleChapterTransitionInput() {
+        if (game != null && KeyBinding.isPressed(inputHandler, KeyAction.CONTINUE)) {
+            game.finishChapterTransition();
+            inputHandler.clearKeys();
+        }
+    }
+
+    /**
+     * 게임 클리어 상태 입력 처리
+     */
+    private void handleGameClearInput() {
+        if (game == null)
+            return;
+        if (KeyBinding.isPressed(inputHandler, KeyAction.RESTART)) {
             game.restartGame();
             inputHandler.clearKeys();
-        } else if (inputHandler.isKeyPressed(KeyEvent.VK_M)) {
-            // 메인 메뉴로 (게임 초기화 후)
+        } else if (KeyBinding.isPressed(inputHandler, KeyAction.MAIN_MENU)) {
             game.restartGame();
             game.setGameState(GameState.MENU);
             inputHandler.clearKeys();
-        } else if (inputHandler.isKeyPressed(KeyEvent.VK_Q)) {
+        } else if (KeyBinding.isPressed(inputHandler, KeyAction.QUIT)) {
+            System.exit(0);
+        }
+    }
+
+    /**
+     * 게임 오버 상태 입력 처리
+     */
+    private void handleGameOverInput() {
+        if (game == null)
+            return;
+
+        if (KeyBinding.isPressed(inputHandler, KeyAction.RESTART)) {
+            game.restartGame();
+            inputHandler.clearKeys();
+        } else if (KeyBinding.isPressed(inputHandler, KeyAction.MAIN_MENU)) {
+            game.restartGame();
+            game.setGameState(GameState.MENU);
+            inputHandler.clearKeys();
+        } else if (KeyBinding.isPressed(inputHandler, KeyAction.QUIT)) {
             System.exit(0);
         }
     }
@@ -191,8 +240,8 @@ public class InputManager {
      */
     private void handleInventorySelection() {
         for (int i = 0; i < 7; i++) {
-            int keyCode = KeyEvent.VK_1 + i;
-            if (inputHandler.isKeyPressed(keyCode)) {
+            KeyAction slotAction = KeyBinding.getItemSlotAction(i);
+            if (slotAction != null && KeyBinding.isPressed(inputHandler, slotAction)) {
                 handleInventoryItemSelection(i);
                 inputHandler.clearKeys();
                 break;

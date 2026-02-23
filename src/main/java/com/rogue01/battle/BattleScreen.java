@@ -4,6 +4,8 @@ import com.rogue01.entity.Player;
 import com.rogue01.entity.Enemy;
 import com.rogue01.item.HealthPotion;
 import com.rogue01.item.Item;
+import com.rogue01.util.KeyBinding;
+import com.rogue01.util.KeyBinding.KeyAction;
 import java.awt.*;
 import java.awt.event.KeyEvent;
 import java.util.List;
@@ -14,15 +16,15 @@ import java.util.List;
 public class BattleScreen {
     private BattleManager battleManager;
     private int selectedActionIndex;
-    private String[] actionMenu = {"공격", "방어", "아이템", "도망"};
+    private String[] actionMenu = { "공격", "방어", "아이템", "도망" };
     private boolean itemSubMenuActive;
     private int selectedConsumableIndex;
-    
+
     public BattleScreen(BattleManager battleManager) {
         this.battleManager = battleManager;
         this.selectedActionIndex = 0;
     }
-    
+
     /**
      * 전투 화면 렌더링
      */
@@ -30,119 +32,119 @@ public class BattleScreen {
         // 배경
         g2d.setColor(new Color(20, 20, 40));
         g2d.fillRect(0, 0, width, height);
-        
+
         // 플레이어 정보 패널 (왼쪽 하단)
         drawPlayerInfo(g2d, width, height);
-        
+
         // 적 정보 패널 (오른쪽 상단)
         drawEnemyInfo(g2d, width, height);
-        
+
         // 액션 메뉴 또는 아이템 서브메뉴
         if (itemSubMenuActive) {
             drawItemSubMenu(g2d, width, height);
         } else {
             drawActionMenu(g2d, width, height);
         }
-        
+
         // 전투 로그 (상단)
         drawBattleLog(g2d, width, height);
-        
+
         // 전투 상태 메시지
         drawBattleStatus(g2d, width, height);
     }
-    
+
     /**
      * 플레이어 정보 그리기
      */
     private void drawPlayerInfo(Graphics2D g2d, int width, int height) {
         Player player = battleManager.getPlayer();
-        
+
         int panelX = 50;
         int panelY = height - 200;
         int panelWidth = 400;
         int panelHeight = 150;
-        
+
         // 패널 배경
         g2d.setColor(new Color(0, 0, 0, 200));
         g2d.fillRect(panelX, panelY, panelWidth, panelHeight);
         g2d.setColor(Color.WHITE);
         g2d.drawRect(panelX, panelY, panelWidth, panelHeight);
-        
+
         // 플레이어 이름
         g2d.setFont(new Font("Monospaced", Font.BOLD, 20));
         g2d.setColor(Color.CYAN);
         g2d.drawString(player.getName(), panelX + 20, panelY + 30);
-        
+
         // HP 바
-        drawHPBar(g2d, panelX + 20, panelY + 50, panelWidth - 40, 20, 
-                 player.getHealth(), player.getMaxHealth(), Color.GREEN);
-        
+        drawHPBar(g2d, panelX + 20, panelY + 50, panelWidth - 40, 20,
+                player.getHealth(), player.getMaxHealth(), Color.GREEN);
+
         // HP 텍스트
         g2d.setFont(new Font("Monospaced", Font.PLAIN, 14));
         g2d.setColor(Color.WHITE);
-        g2d.drawString("HP: " + player.getHealth() + " / " + player.getMaxHealth(), 
-                      panelX + 20, panelY + 90);
-        
+        g2d.drawString("HP: " + player.getHealth() + " / " + player.getMaxHealth(),
+                panelX + 20, panelY + 90);
+
         // 공격력/방어력
-        g2d.drawString("공격력: " + player.getAttack() + " | 방어력: " + player.getDefense(), 
-                      panelX + 20, panelY + 110);
+        g2d.drawString("공격력: " + player.getAttack() + " | 방어력: " + player.getDefense(),
+                panelX + 20, panelY + 110);
     }
-    
+
     /**
      * 적 정보 그리기
      */
     private void drawEnemyInfo(Graphics2D g2d, int width, int height) {
         Enemy enemy = battleManager.getEnemy();
-        
+
         int panelX = width - 450;
         int panelY = 120;
         int panelWidth = 400;
         int panelHeight = 150;
-        
+
         // 패널 배경
         g2d.setColor(new Color(0, 0, 0, 200));
         g2d.fillRect(panelX, panelY, panelWidth, panelHeight);
         g2d.setColor(Color.RED);
         g2d.drawRect(panelX, panelY, panelWidth, panelHeight);
-        
+
         // 적 이름
         g2d.setFont(new Font("Monospaced", Font.BOLD, 20));
         g2d.setColor(Color.RED);
         g2d.drawString(enemy.getName(), panelX + 20, panelY + 30);
-        
+
         // HP 바 (아이콘보다 먼저 그려서 겹치지 않도록)
-        drawHPBar(g2d, panelX + 20, panelY + 50, panelWidth - 120, 20, 
-                 enemy.getHealth(), enemy.getMaxHealth(), Color.RED);
-        
+        drawHPBar(g2d, panelX + 20, panelY + 50, panelWidth - 120, 20,
+                enemy.getHealth(), enemy.getMaxHealth(), Color.RED);
+
         // HP 텍스트
         g2d.setFont(new Font("Monospaced", Font.PLAIN, 14));
         g2d.setColor(Color.WHITE);
-        g2d.drawString("HP: " + enemy.getHealth() + " / " + enemy.getMaxHealth(), 
-                      panelX + 20, panelY + 90);
-        
+        g2d.drawString("HP: " + enemy.getHealth() + " / " + enemy.getMaxHealth(),
+                panelX + 20, panelY + 90);
+
         // 공격력/방어력
-        g2d.drawString("공격력: " + enemy.getAttack() + " | 방어력: " + enemy.getDefense(), 
-                      panelX + 20, panelY + 110);
-        
+        g2d.drawString("공격력: " + enemy.getAttack() + " | 방어력: " + enemy.getDefense(),
+                panelX + 20, panelY + 110);
+
         // 적 심볼 (HP 바 옆 오른쪽에 배치, 마지막에 그려서 가려지지 않도록)
         g2d.setFont(new Font("Monospaced", Font.BOLD, 48));
         g2d.setColor(Color.ORANGE);
         g2d.drawString(String.valueOf(enemy.getSymbol()), panelX + panelWidth - 70, panelY + 95);
     }
-    
+
     /**
      * HP 바 그리기
      */
-    private void drawHPBar(Graphics2D g2d, int x, int y, int width, int height, 
-                           int currentHP, int maxHP, Color color) {
+    private void drawHPBar(Graphics2D g2d, int x, int y, int width, int height,
+            int currentHP, int maxHP, Color color) {
         // 배경
         g2d.setColor(Color.DARK_GRAY);
         g2d.fillRect(x, y, width, height);
-        
+
         // HP 바
         double hpRatio = maxHP > 0 ? (double) currentHP / maxHP : 0.0;
-        int barWidth = (int)(width * hpRatio);
-        
+        int barWidth = (int) (width * hpRatio);
+
         // HP 비율에 따른 색상 변화
         Color barColor;
         if (hpRatio > 0.6) {
@@ -152,15 +154,15 @@ public class BattleScreen {
         } else {
             barColor = Color.RED;
         }
-        
+
         g2d.setColor(barColor);
         g2d.fillRect(x + 1, y + 1, barWidth - 2, height - 2);
-        
+
         // 테두리
         g2d.setColor(Color.WHITE);
         g2d.drawRect(x, y, width, height);
     }
-    
+
     /**
      * 액션 메뉴 그리기 (가로 배치)
      */
@@ -168,32 +170,32 @@ public class BattleScreen {
         if (!battleManager.isPlayerTurn() || battleManager.isBattleEnded()) {
             return;
         }
-        
+
         int menuX = width / 2 - 220;
         int menuY = height - 100;
         int menuWidth = 440;
         int menuHeight = 70;
         int itemSpacing = 100; // 가로 간격
-        
+
         // 메뉴 배경
         g2d.setColor(new Color(0, 0, 0, 220));
         g2d.fillRect(menuX, menuY, menuWidth, menuHeight);
         g2d.setColor(Color.WHITE);
         g2d.drawRect(menuX, menuY, menuWidth, menuHeight);
-        
+
         // 메뉴 제목
         g2d.setFont(new Font("Monospaced", Font.BOLD, 14));
         g2d.setColor(Color.YELLOW);
         g2d.drawString("행동을 선택하세요", menuX + 10, menuY + 20);
-        
+
         // 메뉴 항목 (가로 배치: 공격 | 방어 | 아이템 | 도망)
         g2d.setFont(new Font("Monospaced", Font.PLAIN, 18));
         int startX = menuX + 20;
         int itemY = menuY + 50;
-        
+
         for (int i = 0; i < actionMenu.length; i++) {
             int itemX = startX + i * itemSpacing;
-            
+
             if (i == selectedActionIndex) {
                 // 선택된 항목 강조 (배경 박스)
                 g2d.setColor(new Color(80, 80, 120));
@@ -202,36 +204,36 @@ public class BattleScreen {
             } else {
                 g2d.setColor(Color.WHITE);
             }
-            
+
             g2d.drawString(actionMenu[i], itemX, itemY);
         }
-        
+
         // 조작 안내
         g2d.setFont(new Font("Monospaced", Font.PLAIN, 11));
         g2d.setColor(Color.LIGHT_GRAY);
         g2d.drawString("←→: 선택 | ENTER: 결정", menuX + 10, menuY + menuHeight - 8);
     }
-    
+
     /**
      * 아이템 서브메뉴 그리기 (소비 아이템 선택)
      */
     private void drawItemSubMenu(Graphics2D g2d, int width, int height) {
         List<Item> consumables = battleManager.getConsumables();
-        
+
         int menuX = width / 2 - 220;
         int menuY = height - 150;
         int menuWidth = 440;
         int menuHeight = 120;
-        
+
         g2d.setColor(new Color(0, 0, 0, 230));
         g2d.fillRect(menuX, menuY, menuWidth, menuHeight);
         g2d.setColor(Color.YELLOW);
         g2d.drawRect(menuX, menuY, menuWidth, menuHeight);
-        
+
         g2d.setFont(new Font("Monospaced", Font.BOLD, 14));
         g2d.setColor(Color.YELLOW);
         g2d.drawString("소비 아이템 선택 (ESC: 취소)", menuX + 15, menuY + 25);
-        
+
         if (consumables.isEmpty()) {
             g2d.setFont(new Font("Monospaced", Font.PLAIN, 14));
             g2d.setColor(Color.GRAY);
@@ -256,12 +258,12 @@ public class BattleScreen {
                 g2d.drawString(line, menuX + 15, startY + i * lineHeight);
             }
         }
-        
+
         g2d.setFont(new Font("Monospaced", Font.PLAIN, 11));
         g2d.setColor(Color.LIGHT_GRAY);
         g2d.drawString("↑↓: 선택 | ENTER: 사용 | ESC: 취소", menuX + 10, menuY + menuHeight - 8);
     }
-    
+
     /**
      * 전투 로그 그리기
      */
@@ -269,26 +271,27 @@ public class BattleScreen {
         int logX = 50;
         int logY = 50;
         int logWidth = 500; // 너비를 줄여서 적 정보 패널과 겹치지 않도록
-        int logHeight = 60; // 높이를 크게 줄임 (3개 메시지만 표시)
-        
+        int logHeight = 140; // 8줄 표시 (5줄 추가)
+
         // 로그 배경
         g2d.setColor(new Color(0, 0, 0, 180));
         g2d.fillRect(logX, logY, logWidth, logHeight);
         g2d.setColor(Color.WHITE);
         g2d.drawRect(logX, logY, logWidth, logHeight);
-        
+
         // 로그 제목
         g2d.setFont(new Font("Monospaced", Font.BOLD, 12));
         g2d.setColor(Color.YELLOW);
         g2d.drawString("전투 로그", logX + 10, logY + 18);
-        
-        // 로그 메시지들 (최근 3개만 표시)
+
+        // 로그 메시지들 (최근 8개 표시)
         g2d.setFont(new Font("Monospaced", Font.PLAIN, 11));
         g2d.setColor(Color.WHITE);
-        
+
         java.util.List<String> logs = battleManager.getBattleLog();
-        int startIndex = Math.max(0, logs.size() - 3); // 최근 3개만 표시
-        
+        int maxLines = 8;
+        int startIndex = Math.max(0, logs.size() - maxLines);
+
         for (int i = startIndex; i < logs.size(); i++) {
             int y = logY + 35 + (i - startIndex) * 18;
             // 메시지가 너무 길면 잘라내기
@@ -299,16 +302,16 @@ public class BattleScreen {
             g2d.drawString(message, logX + 10, y);
         }
     }
-    
+
     /**
      * 전투 상태 메시지 그리기
      */
     private void drawBattleStatus(Graphics2D g2d, int width, int height) {
         g2d.setFont(new Font("Monospaced", Font.BOLD, 24));
-        
+
         if (battleManager.isBattleEnded()) {
             BattleManager.BattleResult result = battleManager.getResult();
-            
+
             switch (result) {
                 case VICTORY:
                     g2d.setColor(Color.GREEN);
@@ -337,7 +340,7 @@ public class BattleScreen {
             g2d.drawString("적의 턴...", width / 2 - 60, height / 2);
         }
     }
-    
+
     /**
      * 입력 처리
      */
@@ -345,37 +348,23 @@ public class BattleScreen {
         if (battleManager.isBattleEnded()) {
             return;
         }
-        
+
         if (!battleManager.isPlayerTurn()) {
             return;
         }
-        
+
         if (itemSubMenuActive) {
             handleItemSubMenuInput(e);
             return;
         }
-        
-        switch (e.getKeyCode()) {
-            case KeyEvent.VK_LEFT:
-            case KeyEvent.VK_A:
-                selectedActionIndex = (selectedActionIndex - 1 + actionMenu.length) % actionMenu.length;
-                e.consume();
-                break;
-            case KeyEvent.VK_RIGHT:
-            case KeyEvent.VK_D:
-                selectedActionIndex = (selectedActionIndex + 1) % actionMenu.length;
-                e.consume();
-                break;
-            case KeyEvent.VK_UP:
-                selectedActionIndex = (selectedActionIndex - 1 + actionMenu.length) % actionMenu.length;
-                e.consume();
-                break;
-            case KeyEvent.VK_DOWN:
-                selectedActionIndex = (selectedActionIndex + 1) % actionMenu.length;
-                e.consume();
-                break;
-            case KeyEvent.VK_ENTER:
-            case KeyEvent.VK_SPACE:
+
+        if (KeyBinding.matches(e, KeyAction.BATTLE_MENU_LEFT) || KeyBinding.matches(e, KeyAction.BATTLE_MENU_UP)) {
+            selectedActionIndex = (selectedActionIndex - 1 + actionMenu.length) % actionMenu.length;
+            e.consume();
+        } else if (KeyBinding.matches(e, KeyAction.BATTLE_MENU_RIGHT) || KeyBinding.matches(e, KeyAction.BATTLE_MENU_DOWN)) {
+            selectedActionIndex = (selectedActionIndex + 1) % actionMenu.length;
+            e.consume();
+        } else if (KeyBinding.matches(e, KeyAction.BATTLE_CONFIRM)) {
                 if (selectedActionIndex == 2) {
                     // 아이템: 서브메뉴 열기
                     List<Item> consumables = battleManager.getConsumables();
@@ -390,49 +379,40 @@ public class BattleScreen {
                 } else {
                     executeSelectedAction();
                 }
-                e.consume();
-                break;
+            e.consume();
         }
     }
-    
+
     private void handleItemSubMenuInput(KeyEvent e) {
         List<Item> consumables = battleManager.getConsumables();
-        
-        switch (e.getKeyCode()) {
-            case KeyEvent.VK_ESCAPE:
+
+        if (KeyBinding.matches(e, KeyAction.CLOSE)) {
+            itemSubMenuActive = false;
+            e.consume();
+        } else if (KeyBinding.matches(e, KeyAction.BATTLE_MENU_UP)) {
+            if (!consumables.isEmpty()) {
+                selectedConsumableIndex = (selectedConsumableIndex - 1 + consumables.size()) % consumables.size();
+            }
+            e.consume();
+        } else if (KeyBinding.matches(e, KeyAction.BATTLE_MENU_DOWN)) {
+            if (!consumables.isEmpty()) {
+                selectedConsumableIndex = (selectedConsumableIndex + 1) % consumables.size();
+            }
+            e.consume();
+        } else if (KeyBinding.matches(e, KeyAction.BATTLE_CONFIRM)) {
+            if (!consumables.isEmpty() && battleManager.executeUseConsumable(selectedConsumableIndex)) {
                 itemSubMenuActive = false;
-                e.consume();
-                break;
-            case KeyEvent.VK_UP:
-            case KeyEvent.VK_W:
-                if (!consumables.isEmpty()) {
-                    selectedConsumableIndex = (selectedConsumableIndex - 1 + consumables.size()) % consumables.size();
-                }
-                e.consume();
-                break;
-            case KeyEvent.VK_DOWN:
-            case KeyEvent.VK_S:
-                if (!consumables.isEmpty()) {
-                    selectedConsumableIndex = (selectedConsumableIndex + 1) % consumables.size();
-                }
-                e.consume();
-                break;
-            case KeyEvent.VK_ENTER:
-            case KeyEvent.VK_SPACE:
-                if (!consumables.isEmpty() && battleManager.executeUseConsumable(selectedConsumableIndex)) {
-                    itemSubMenuActive = false;
-                }
-                e.consume();
-                break;
+            }
+            e.consume();
         }
     }
-    
+
     /**
      * 선택된 액션 실행
      */
     private void executeSelectedAction() {
         BattleManager.BattleAction action;
-        
+
         switch (selectedActionIndex) {
             case 0:
                 action = BattleManager.BattleAction.ATTACK;
@@ -449,10 +429,10 @@ public class BattleScreen {
             default:
                 return;
         }
-        
+
         battleManager.executePlayerAction(action);
     }
-    
+
     public int getSelectedActionIndex() {
         return selectedActionIndex;
     }

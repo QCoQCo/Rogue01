@@ -13,24 +13,31 @@ public class Enemy extends Entity {
     private int defense;
     private int experience;
     private RandomUtils randomUtils;
-    
+
     // AI 상태
     private boolean hasSeenPlayer;
     private int lastPlayerX;
     private int lastPlayerY;
-    
+
     public Enemy(int x, int y, EnemyType enemyType) {
+        this(x, y, enemyType, 1.0);
+    }
+
+    /**
+     * @param statScale 층/챕터별 스탯 배율 (GameBalance.getEnemyStatScale)
+     */
+    public Enemy(int x, int y, EnemyType enemyType, double statScale) {
         super(x, y, enemyType.getSymbol(), enemyType.getKoreanName());
         this.enemyType = enemyType;
-        this.maxHealth = enemyType.getMaxHealth();
+        this.maxHealth = Math.max(1, (int) (enemyType.getMaxHealth() * statScale));
         this.health = maxHealth;
-        this.attack = enemyType.getAttack();
-        this.defense = enemyType.getDefense();
-        this.experience = enemyType.getExperience();
+        this.attack = Math.max(1, (int) (enemyType.getAttack() * statScale));
+        this.defense = Math.max(0, (int) (enemyType.getDefense() * statScale));
+        this.experience = Math.max(1, (int) (enemyType.getExperience() * statScale));
         this.randomUtils = new RandomUtils();
         this.hasSeenPlayer = false;
     }
-    
+
     @Override
     public void update(Map map) {
         if (isDead()) {
@@ -39,28 +46,29 @@ public class Enemy extends Entity {
         // 턴제: 호출될 때마다 한 칸 이동 (다른 적 없을 때만 - List<Enemy> 없는 경우 호출 시)
         randomMove(map, List.of());
     }
-    
+
     /**
      * 플레이어를 추적하는 AI 업데이트 (턴제: 호출될 때마다 한 칸 이동)
+     * 
      * @param allEnemies 다른 적과 겹치지 않도록 전체 적 목록 필요
      */
     public void update(Map map, Player player, List<Enemy> allEnemies) {
         if (isDead()) {
             return;
         }
-        
+
         // 플레이어와의 거리 계산
         int dx = player.getX() - x;
         int dy = player.getY() - y;
         int distance = (int) Math.sqrt(dx * dx + dy * dy);
-        
+
         // 시야 범위 내에 있으면 추적
         int sightRange = 8;
         if (distance <= sightRange) {
             hasSeenPlayer = true;
             lastPlayerX = player.getX();
             lastPlayerY = player.getY();
-            
+
             // 플레이어에게 접근
             moveTowards(map, player.getX(), player.getY(), allEnemies);
         } else if (hasSeenPlayer && distance <= sightRange * 2) {
@@ -72,14 +80,14 @@ public class Enemy extends Entity {
             randomMove(map, allEnemies);
         }
     }
-    
+
     /**
      * 목표 위치로 이동 (다른 적이 있는 타일로는 이동하지 않음)
      */
     private void moveTowards(Map map, int targetX, int targetY, List<Enemy> allEnemies) {
         int dx = targetX - x;
         int dy = targetY - y;
-        
+
         // X 또는 Y 방향으로 이동
         if (Math.abs(dx) > Math.abs(dy)) {
             // X 방향 우선
@@ -105,7 +113,7 @@ public class Enemy extends Entity {
             }
         }
     }
-    
+
     /**
      * 랜덤 이동 (다른 적이 있는 타일로는 이동하지 않음)
      */
@@ -113,7 +121,7 @@ public class Enemy extends Entity {
         int direction = randomUtils.nextInt(4);
         int newX = x;
         int newY = y;
-        
+
         switch (direction) {
             case 0: // 위
                 newY--;
@@ -128,13 +136,13 @@ public class Enemy extends Entity {
                 newX++;
                 break;
         }
-        
+
         if (canMoveTo(map, newX, newY, allEnemies)) {
             x = newX;
             y = newY;
         }
     }
-    
+
     /**
      * 해당 위치로 이동 가능한지 (맵이 통과 가능하고, 다른 적이 없음)
      * 플레이어 위치는 허용 (전투 시작용)
@@ -150,7 +158,7 @@ public class Enemy extends Entity {
         }
         return true;
     }
-    
+
     /**
      * 플레이어를 공격
      */
@@ -158,11 +166,11 @@ public class Enemy extends Entity {
         if (isDead()) {
             return;
         }
-        
+
         int damage = Math.max(1, attack - player.getDefense());
         player.takeDamage(damage);
     }
-    
+
     /**
      * 플레이어와 인접해 있는지 확인
      */
@@ -171,20 +179,25 @@ public class Enemy extends Entity {
         int dy = Math.abs(y - player.getY());
         return (dx == 1 && dy == 0) || (dx == 0 && dy == 1);
     }
-    
+
     // Getters
     public EnemyType getEnemyType() {
         return enemyType;
     }
-    
+
+    /** getEnemyType()와 동일 (Item.getType() 패턴 통일) */
+    public EnemyType getType() {
+        return enemyType;
+    }
+
     public int getAttack() {
         return attack;
     }
-    
+
     public int getDefense() {
         return defense;
     }
-    
+
     public int getExperience() {
         return experience;
     }

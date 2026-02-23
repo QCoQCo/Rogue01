@@ -1,80 +1,59 @@
 package com.rogue01.entity;
 
 import com.rogue01.util.InputHandler;
+import com.rogue01.util.KeyBinding;
+import com.rogue01.util.KeyBinding.KeyAction;
 import com.rogue01.item.Inventory;
-import java.awt.event.KeyEvent;
 import com.rogue01.map.Map;
 
 public class Player extends Entity {
     private InputHandler inputHandler;
     private Inventory inventory;
-    
+
     // 레벨/스탯 시스템
     private int level;
     private int experience;
-    private int baseAttack;   // 레벨에 따른 기본 공격력
-    private int baseDefense;  // 레벨에 따른 기본 방어력
-
-    // 이동 방향을 정의하는 enum
-    private enum Direction {
-        UP(0, -1), DOWN(0, 1), LEFT(-1, 0), RIGHT(1, 0);
-
-        private final int dx, dy;
-
-        Direction(int dx, int dy) {
-            this.dx = dx;
-            this.dy = dy;
-        }
-
-        public int getDx() {
-            return dx;
-        }
-
-        public int getDy() {
-            return dy;
-        }
-    }
-
-    // 키 매핑을 위한 배열 (더 간단한 접근)
-    private final int[] upKeys = { KeyEvent.VK_W, KeyEvent.VK_UP };
-    private final int[] downKeys = { KeyEvent.VK_S, KeyEvent.VK_DOWN };
-    private final int[] leftKeys = { KeyEvent.VK_A, KeyEvent.VK_LEFT };
-    private final int[] rightKeys = { KeyEvent.VK_D, KeyEvent.VK_RIGHT };
+    private int baseAttack; // 레벨에 따른 기본 공격력
+    private int baseDefense; // 레벨에 따른 기본 방어력
 
     public Player(int x, int y) {
-        super(x, y, '@', "Player");
+        super(x, y, '†', "Player");
         this.inputHandler = new InputHandler();
         this.inventory = new Inventory();
         this.level = 1;
         this.experience = 0;
         applyLevelStats();
     }
-    
+
     /**
      * 레벨에 따른 기본 스탯 적용
      */
     private void applyLevelStats() {
-        this.baseAttack = 5 + level * 2;
-        this.baseDefense = 2 + level;
-        this.maxHealth = 80 + level * 15;
+        this.baseAttack = com.rogue01.game.GameBalance.PLAYER_BASE_ATTACK
+                + level * com.rogue01.game.GameBalance.PLAYER_ATTACK_PER_LEVEL;
+        this.baseDefense = com.rogue01.game.GameBalance.PLAYER_BASE_DEFENSE
+                + level * com.rogue01.game.GameBalance.PLAYER_DEFENSE_PER_LEVEL;
+        this.maxHealth = com.rogue01.game.GameBalance.PLAYER_BASE_HP
+                + level * com.rogue01.game.GameBalance.PLAYER_HP_PER_LEVEL;
         if (this.health > this.maxHealth) {
             this.health = this.maxHealth;
         }
     }
-    
+
     /**
      * 경험치 추가 및 레벨업 처리
      */
     public void addExperience(int exp) {
-        if (exp <= 0) return;
+        if (exp <= 0)
+            return;
         this.experience += exp;
-        
+
         while (experience >= getExpToNextLevel()) {
             experience -= getExpToNextLevel();
             levelUp();
         }
     }
-    
+
     /**
      * 레벨업 시 스탯 상승
      */
@@ -83,58 +62,34 @@ public class Player extends Entity {
         applyLevelStats();
         health = maxHealth; // 풀 회복
     }
-    
+
     /**
      * 다음 레벨까지 필요한 경험치
      */
     public int getExpToNextLevel() {
-        return 50 + level * 40;
+        return com.rogue01.game.GameBalance.getExpToNextLevel(level);
     }
 
     @Override
     public void update(Map map) {
-        // 위쪽 이동
-        if (isAnyKeyPressed(upKeys)) {
-            if (map.isWalkable(x, y - 1)) {
+        if (inputHandler == null)
+            return;
+        if (KeyBinding.isPressed(inputHandler, KeyAction.MOVE_UP)) {
+            if (map.isWalkable(x, y - 1))
                 y--;
-            }
-            consumeKeys(upKeys);
-        }
-        // 아래쪽 이동
-        else if (isAnyKeyPressed(downKeys)) {
-            if (map.isWalkable(x, y + 1)) {
+            KeyBinding.consumeKeys(inputHandler, KeyAction.MOVE_UP);
+        } else if (KeyBinding.isPressed(inputHandler, KeyAction.MOVE_DOWN)) {
+            if (map.isWalkable(x, y + 1))
                 y++;
-            }
-            consumeKeys(downKeys);
-        }
-        // 왼쪽 이동
-        else if (isAnyKeyPressed(leftKeys)) {
-            if (map.isWalkable(x - 1, y)) {
+            KeyBinding.consumeKeys(inputHandler, KeyAction.MOVE_DOWN);
+        } else if (KeyBinding.isPressed(inputHandler, KeyAction.MOVE_LEFT)) {
+            if (map.isWalkable(x - 1, y))
                 x--;
-            }
-            consumeKeys(leftKeys);
-        }
-        // 오른쪽 이동
-        else if (isAnyKeyPressed(rightKeys)) {
-            if (map.isWalkable(x + 1, y)) {
+            KeyBinding.consumeKeys(inputHandler, KeyAction.MOVE_LEFT);
+        } else if (KeyBinding.isPressed(inputHandler, KeyAction.MOVE_RIGHT)) {
+            if (map.isWalkable(x + 1, y))
                 x++;
-            }
-            consumeKeys(rightKeys);
-        }
-    }
-
-    private boolean isAnyKeyPressed(int[] keys) {
-        for (int key : keys) {
-            if (inputHandler.isKeyPressed(key)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private void consumeKeys(int[] keys) {
-        for (int key : keys) {
-            inputHandler.consumeKey(key);
+            KeyBinding.consumeKeys(inputHandler, KeyAction.MOVE_RIGHT);
         }
     }
 
@@ -173,7 +128,7 @@ public class Player extends Entity {
         }
         return totalAttack;
     }
-    
+
     /**
      * 레벨/경험치 초기화 (재시작 시)
      */
@@ -183,10 +138,21 @@ public class Player extends Entity {
         applyLevelStats();
         this.health = this.maxHealth;
     }
-    
+
     // 레벨/스탯 getters
-    public int getLevel() { return level; }
-    public int getExperience() { return experience; }
-    public int getBaseAttack() { return baseAttack; }
-    public int getBaseDefense() { return baseDefense; }
+    public int getLevel() {
+        return level;
+    }
+
+    public int getExperience() {
+        return experience;
+    }
+
+    public int getBaseAttack() {
+        return baseAttack;
+    }
+
+    public int getBaseDefense() {
+        return baseDefense;
+    }
 }

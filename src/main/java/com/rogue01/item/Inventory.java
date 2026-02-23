@@ -9,15 +9,15 @@ public class Inventory {
     private static final int INVENTORY_SIZE = 50;
     private final List<Item> items;
     private final Map<ItemType, Equipment> equippedItems;
-    
+
     public Inventory() {
         this.items = new ArrayList<>();
         this.equippedItems = new HashMap<>();
-        
+
         // 기본 장비 슬롯 초기화
         initializeEquipmentSlots();
     }
-    
+
     /**
      * 장비 슬롯 초기화
      */
@@ -28,14 +28,14 @@ public class Inventory {
             }
         }
     }
-    
+
     /**
      * 장비 타입인지 확인
      */
     private boolean isEquipmentType(ItemType type) {
         return type != ItemType.CONSUMABLE && type != ItemType.MATERIAL;
     }
-    
+
     /**
      * 아이템 추가
      */
@@ -43,21 +43,21 @@ public class Inventory {
         if (item == null) {
             return false;
         }
-        
+
         if (items.size() < INVENTORY_SIZE) {
             items.add(item);
             return true;
         }
         return false;
     }
-    
+
     /**
      * 아이템 제거
      */
     public boolean removeItem(Item item) {
         return items.remove(item);
     }
-    
+
     /**
      * 인덱스로 아이템 제거
      */
@@ -68,7 +68,7 @@ public class Inventory {
         }
         return false;
     }
-    
+
     /**
      * 인덱스로 아이템 가져오기
      */
@@ -78,7 +78,7 @@ public class Inventory {
         }
         return null;
     }
-    
+
     /**
      * 특정 타입의 아이템들 가져오기
      */
@@ -92,7 +92,7 @@ public class Inventory {
         }
         return result;
     }
-    
+
     /**
      * 장비 착용
      */
@@ -100,26 +100,26 @@ public class Inventory {
         if (!(item instanceof Equipment)) {
             return false;
         }
-        
+
         Equipment equipment = (Equipment) item;
         ItemType type = equipment.getType();
-        
+
         if (equippedItems.containsKey(type)) {
             // 기존 장비 해제
             Equipment oldEquipment = equippedItems.get(type);
             if (oldEquipment != null) {
                 items.add(oldEquipment);
             }
-            
+
             // 새 장비 착용
             equippedItems.put(type, equipment);
             items.remove(item);
             return true;
         }
-        
+
         return false;
     }
-    
+
     /**
      * 장비 해제 (인벤토리로 이동)
      */
@@ -127,7 +127,7 @@ public class Inventory {
         if (!isEquipmentType(type)) {
             return false;
         }
-        
+
         Equipment equipped = equippedItems.get(type);
         if (equipped != null && addItem(equipped)) {
             equippedItems.put(type, null);
@@ -135,7 +135,7 @@ public class Inventory {
         }
         return false;
     }
-    
+
     /**
      * 착용 장비 버리기 (인벤토리로 넣지 않고 제거)
      */
@@ -150,21 +150,21 @@ public class Inventory {
         }
         return false;
     }
-    
+
     /**
      * 착용된 장비 가져오기
      */
     public Equipment getEquippedItem(ItemType type) {
         return equippedItems.get(type);
     }
-    
+
     /**
      * 모든 착용된 장비 가져오기
      */
     public Map<ItemType, Equipment> getEquippedItems() {
         return new HashMap<>(equippedItems);
     }
-    
+
     /**
      * 특정 타입의 착용된 장비 가져오기
      */
@@ -177,42 +177,42 @@ public class Inventory {
         }
         return result;
     }
-    
+
     /**
      * 인덱스 유효성 검사
      */
     private boolean isValidIndex(int index) {
         return index >= 0 && index < items.size();
     }
-    
+
     /**
      * 아이템 목록 가져오기 (방어적 복사)
      */
     public List<Item> getItems() {
         return new ArrayList<>(items);
     }
-    
+
     /**
      * 인벤토리 크기
      */
     public int getSize() {
         return items.size();
     }
-    
+
     /**
      * 최대 인벤토리 크기
      */
     public int getMaxSize() {
         return INVENTORY_SIZE;
     }
-    
+
     /**
      * 인벤토리가 가득 찼는지 확인
      */
     public boolean isFull() {
         return items.size() >= INVENTORY_SIZE;
     }
-    
+
     /**
      * 인벤토리 비우기 (장비 해제 포함)
      */
@@ -222,7 +222,7 @@ public class Inventory {
             equippedItems.put(type, null);
         }
     }
-    
+
     /**
      * 소비 아이템 목록 가져오기 (전투/필드에서 사용용)
      */
@@ -235,9 +235,10 @@ public class Inventory {
         }
         return result;
     }
-    
+
     /**
      * 아이템 사용 (소비 아이템만, 사용 후 제거)
+     * 
      * @return true if used and removed, false otherwise
      */
     public boolean useItem(Item item, com.rogue01.entity.Player player) {
@@ -251,7 +252,7 @@ public class Inventory {
         items.remove(item);
         return true;
     }
-    
+
     /**
      * 인덱스로 소비 아이템 사용 (소비 아이템 목록 기준)
      */
@@ -263,7 +264,7 @@ public class Inventory {
         Item item = consumables.get(consumableListIndex);
         return useItem(item, player);
     }
-    
+
     /**
      * 특정 타입의 아이템 개수
      */
@@ -276,18 +277,18 @@ public class Inventory {
         }
         return count;
     }
-    
+
     /**
      * 특정 아이템이 있는지 확인
      */
     public boolean containsItem(Item item) {
         return items.contains(item);
     }
-    
+
     /**
      * 특정 이름의 아이템이 있는지 확인
      */
     public boolean containsItemByName(String name) {
         return items.stream().anyMatch(item -> item.getName().equals(name));
     }
-} 
+}
