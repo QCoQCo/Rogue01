@@ -2,11 +2,20 @@ package com.rogue01.map.generators;
 
 import com.rogue01.map.*;
 import com.rogue01.map.structures.Room;
-import com.rogue01.map.utils.RandomUtils;
+import com.rogue01.map.utils.MapConnectivity;
 import java.util.*;
 
 public class HybridGenerator implements MapGenerator {
+    /** 계단/보스 문에 도달할 수 없는 맵이면 시드를 바꿔 재생성하는 최대 횟수 */
+    private static final int MAX_GENERATION_ATTEMPTS = 10;
+    private static final long ATTEMPT_SEED_STEP = 1_000_003L;
+    /** 계단 후보 중 실제로 배치를 시도해 볼 최대 개수 */
+    private static final int MAX_STAIRS_TRIES = 50;
+    private static final int STAIRS_MIN_DISTANCE = 15;
+
     private long seed;
+    /** 현재 생성 시도에 쓰는 시드 (재생성 시 seed에서 파생) */
+    private long layoutSeed;
     private List<Room> rooms;
     private long generationTime;
     private int lastWidth;
@@ -17,6 +26,8 @@ public class HybridGenerator implements MapGenerator {
     private int lastStairsY = -1;
     private final List<int[]> lastSealWalls = new ArrayList<>();
     private final List<int[]> lastBossDoors = new ArrayList<>();
+    /** 배치된 보스 문 블록 {baseX, baseY, width, height} (도달성 검사용) */
+    private final List<int[]> lastBossDoorBlocks = new ArrayList<>();
 
     // 각 생성기
     private RoomCorridorGenerator roomGenerator;
@@ -35,11 +46,38 @@ public class HybridGenerator implements MapGenerator {
         long startTime = System.currentTimeMillis();
         this.lastWidth = width;
         this.lastHeight = height;
+
+        Tile[][] tiles = null;
+        for (int attempt = 0; attempt < MAX_GENERATION_ATTEMPTS; attempt++) {
+            tiles = generateLayout(width, height, seed + attempt * ATTEMPT_SEED_STEP);
+            if (isLayoutValid(tiles)) {
+                break;
+            }
+            System.out.println("Map layout unreachable, regenerating (attempt " + (attempt + 1) + ")");
+        }
+
+        generationTime = System.currentTimeMillis() - startTime;
+        return tiles;
+    }
+
+    /**
+     * 지정한 시드로 한 번 생성 (하위 생성기도 새로 만들어 이전 시도의 방 정보가 남지 않도록 함)
+     */
+    private Tile[][] generateLayout(int width, int height, long attemptSeed) {
+        this.layoutSeed = attemptSeed;
+        this.roomGenerator = new RoomCorridorGenerator();
+        this.cellularGenerator = new CellularGenerator();
+        this.bspGenerator = new BSPGenerator();
+        roomGenerator.setSeed(attemptSeed);
+        cellularGenerator.setSeed(attemptSeed + 1);
+        bspGenerator.setSeed(attemptSeed + 2);
+
         this.rooms.clear();
         this.lastStairsX = -1;
         this.lastStairsY = -1;
         this.lastSealWalls.clear();
         this.lastBossDoors.clear();
+        this.lastBossDoorBlocks.clear();
 
         // 맵을 벽으로 초기화
         Tile[][] tiles = new Tile[width][height];
@@ -69,19 +107,62 @@ public class HybridGenerator implements MapGenerator {
         // 5. 플레이어 시작 위치 설정 (중심부)
         setPlayerStartPosition(tiles, centerX, centerY);
 
-        // 6. 계단 및 봉인벽 배치 (1층, 2층에만 - 3층은 보스방만)
-        if (level <= 2) {
-            placeStairsAndSealWalls(tiles, width, height, centerX, centerY);
-        }
-
-        // 7. 보스방 문 배치 (2층: 중간보스 2개 3x4, 3층: 챕터보스 1개 4x12)
+        // 6. 보스방 문 배치 (2층: 중간보스 2개 3x4, 3층: 챕터보스 1개 4x12)
+        // 통로 연장이 계단/봉인벽을 덮어쓰지 않도록 계단보다 먼저 배치
         if (level >= 2) {
             placeBossDoors(tiles, width, height, centerX, centerY);
         }
 
-        generationTime = System.currentTimeMillis() - startTime;
+        // 7. 계단 및 봉인벽 배치 (1층, 2층에만 - 3층은 보스방만)
+        if (level <= 2) {
+            placeStairsAndSealWalls(tiles, width, height, centerX, centerY);
+        }
 
         return tiles;
+    }
+
+    /**
+     * 생성된 맵이 진행 가능한지 검사
+     * - 1·2층: 계단이 존재하고 시작 위치에서 도달 가능 (2층은 봉인 해제 후 기준)
+     * - 2·3층: 모든 보스 문 앞에 봉인이 있는 상태로 도달 가능
+     */
+    private boolean isLayoutValid(Tile[][] tiles) {
+        int startX = lastWidth / 2;
+        int startY = lastHeight / 2;
+
+        if (level <= 2) {
+            if (lastStairsX < 0 || !tiles[lastStairsX][lastStairsY].isStairsDown()) {
+                return false;
+            }
+            boolean[][] reachableAfterSeal = MapConnectivity.reachableFrom(tiles, startX, startY, true);
+            if (!reachableAfterSeal[lastStairsX][lastStairsY]) {
+                return false;
+            }
+        }
+
+        if (level >= 2) {
+            if (lastBossDoorBlocks.isEmpty()) {
+                return false;
+            }
+            boolean[][] reachable = MapConnectivity.reachableFrom(tiles, startX, startY, false);
+            for (int[] block : lastBossDoorBlocks) {
+                if (!isBossDoorBlockReachable(reachable, block)) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    private boolean isBossDoorBlockReachable(boolean[][] reachable, int[] block) {
+        for (int ox = 0; ox < block[2]; ox++) {
+            for (int oy = 0; oy < block[3]; oy++) {
+                if (MapConnectivity.hasReachableNeighbor(reachable, block[0] + ox, block[1] + oy)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     @Override
@@ -91,47 +172,81 @@ public class HybridGenerator implements MapGenerator {
     }
 
     /**
-     * 계단 배치 (플레이어와 거리 두고), 2층이면 주변 8칸 봉인벽
+     * 계단 배치 (시작 위치에서 도달 가능한 바닥 중 거리 두고), 2층이면 주변 8칸 봉인벽
+     * 봉인벽이 보스 문으로 가는 길을 막으면 되돌리고 다른 후보를 시도
      */
     private void placeStairsAndSealWalls(Tile[][] tiles, int width, int height, int playerX, int playerY) {
-        Random rand = new Random(seed + 1000);
-        int minDist = 15;
-        int attempts = 0;
-        int stairsX = -1, stairsY = -1;
+        Random rand = new Random(layoutSeed + 1000);
+        boolean[][] reachable = MapConnectivity.reachableFrom(tiles, playerX, playerY, false);
 
-        while (attempts < 200) {
-            int x = 10 + rand.nextInt(width - 20);
-            int y = 10 + rand.nextInt(height - 20);
-            int dist = (int) Math.sqrt(Math.pow(x - playerX, 2) + Math.pow(y - playerY, 2));
-            if (dist >= minDist && tiles[x][y].isWalkable()) {
-                stairsX = x;
-                stairsY = y;
-                break;
+        List<int[]> candidates = new ArrayList<>();
+        for (int x = 1; x < width - 1; x++) {
+            for (int y = 1; y < height - 1; y++) {
+                int dist = (int) Math.sqrt(Math.pow(x - playerX, 2) + Math.pow(y - playerY, 2));
+                if (reachable[x][y] && tiles[x][y].getType() == Tile.TileType.FLOOR
+                        && dist >= STAIRS_MIN_DISTANCE && !isNextToBossDoor(tiles, x, y)) {
+                    candidates.add(new int[] { x, y });
+                }
             }
-            attempts++;
+        }
+        Collections.shuffle(candidates, rand);
+
+        int tries = Math.min(candidates.size(), MAX_STAIRS_TRIES);
+        for (int i = 0; i < tries; i++) {
+            if (tryPlaceStairs(tiles, candidates.get(i)[0], candidates.get(i)[1], playerX, playerY)) {
+                return;
+            }
+        }
+        // 배치 실패 시 lastStairsX = -1 → isLayoutValid에서 재생성
+    }
+
+    /**
+     * (x, y)에 계단(+2층 봉인벽) 배치 시도. 보스 문 도달성이 깨지면 원상복구하고 false
+     */
+    private boolean tryPlaceStairs(Tile[][] tiles, int stairsX, int stairsY, int playerX, int playerY) {
+        int[] dx = { -1, 0, 1, -1, 1, -1, 0, 1 };
+        int[] dy = { -1, -1, -1, 0, 0, 1, 1, 1 };
+        Tile[] previous = new Tile[8];
+        Tile previousStairsTile = tiles[stairsX][stairsY];
+
+        tiles[stairsX][stairsY] = new Tile('>', true, Tile.TileType.STAIRS_DOWN);
+        if (level == 2) {
+            // 2층: 계단 주변 8칸 봉인벽 (후보는 맵 경계 1칸 안쪽이라 항상 범위 내)
+            for (int i = 0; i < 8; i++) {
+                previous[i] = tiles[stairsX + dx[i]][stairsY + dy[i]];
+                tiles[stairsX + dx[i]][stairsY + dy[i]] = new Tile('#', false, Tile.TileType.SEAL_WALL);
+            }
+
+            boolean[][] reachable = MapConnectivity.reachableFrom(tiles, playerX, playerY, false);
+            for (int[] block : lastBossDoorBlocks) {
+                if (!isBossDoorBlockReachable(reachable, block)) {
+                    tiles[stairsX][stairsY] = previousStairsTile;
+                    for (int i = 0; i < 8; i++) {
+                        tiles[stairsX + dx[i]][stairsY + dy[i]] = previous[i];
+                    }
+                    return false;
+                }
+            }
+            for (int i = 0; i < 8; i++) {
+                lastSealWalls.add(new int[] { stairsX + dx[i], stairsY + dy[i] });
+            }
         }
 
         lastStairsX = stairsX;
         lastStairsY = stairsY;
-        lastSealWalls.clear();
+        return true;
+    }
 
-        if (stairsX >= 0 && stairsY >= 0) {
-            tiles[stairsX][stairsY] = new Tile('>', true, Tile.TileType.STAIRS_DOWN);
-
-            // 2층: 계단 주변 8칸 봉인벽
-            if (level == 2) {
-                int[] dx = {-1, 0, 1, -1, 1, -1, 0, 1};
-                int[] dy = {-1, -1, -1, 0, 0, 1, 1, 1};
-                for (int i = 0; i < 8; i++) {
-                    int nx = stairsX + dx[i];
-                    int ny = stairsY + dy[i];
-                    if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
-                        tiles[nx][ny] = new Tile('#', false, Tile.TileType.SEAL_WALL);
-                        lastSealWalls.add(new int[]{nx, ny});
-                    }
+    /** 주변 8칸(또는 자기 자신)에 보스 문 타일이 있는지 - 봉인벽이 문을 덮어쓰지 않도록 */
+    private boolean isNextToBossDoor(Tile[][] tiles, int x, int y) {
+        for (int ox = -1; ox <= 1; ox++) {
+            for (int oy = -1; oy <= 1; oy++) {
+                if (tiles[x + ox][y + oy].isBossDoor()) {
+                    return true;
                 }
             }
         }
+        return false;
     }
 
     private void generateCentralArea(Tile[][] tiles, int startX, int startY, int sizeX, int sizeY) {
@@ -249,6 +364,11 @@ public class HybridGenerator implements MapGenerator {
             else if (y > y2)
                 y--;
         }
+
+        // 끝점도 뚫어야 통로가 끊기지 않음 (보스 문 앞 칸과 연결)
+        if (x2 >= 0 && x2 < tiles.length && y2 >= 0 && y2 < tiles[0].length) {
+            tiles[x2][y2] = new Tile('.', true);
+        }
     }
 
     private void setPlayerStartPosition(Tile[][] tiles, int centerX, int centerY) {
@@ -261,7 +381,7 @@ public class HybridGenerator implements MapGenerator {
      * 기존 연결 통로 끝을 연장한 뒤 문 블록 배치
      */
     private void placeBossDoors(Tile[][] tiles, int width, int height, int centerX, int centerY) {
-        Random rand = new Random(seed + 2000);
+        Random rand = new Random(layoutSeed + 2000);
         int[][] dirs = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
         List<int[]> used = new ArrayList<>();
 
@@ -331,6 +451,7 @@ public class HybridGenerator implements MapGenerator {
                 }
             }
         }
+        lastBossDoorBlocks.add(new int[] { baseX, baseY, doorW, doorH });
         return true;
     }
 
@@ -355,10 +476,8 @@ public class HybridGenerator implements MapGenerator {
 
     @Override
     public void setSeed(long seed) {
+        // 하위 생성기 시드는 generateLayout에서 시도별로 설정
         this.seed = seed;
-        roomGenerator.setSeed(seed);
-        cellularGenerator.setSeed(seed + 1);
-        bspGenerator.setSeed(seed + 2);
     }
 
     @Override
