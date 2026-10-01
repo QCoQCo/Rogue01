@@ -2,6 +2,7 @@ package com.rogue01.map;
 
 import com.rogue01.map.generators.*;
 import com.rogue01.map.structures.Room;
+import java.util.ArrayDeque;
 import java.util.List;
 
 /**
@@ -177,18 +178,57 @@ public class Map {
      * @return 1=중간보스, 2=챕터보스, 0=인접 아님
      */
     public int getAdjacentBossDoorType(int px, int py) {
+        int[] door = getAdjacentBossDoor(px, py);
+        if (door == null) {
+            return 0;
+        }
+        return tiles[door[0]][door[1]].isBossDoorChapter() ? 2 : 1;
+    }
+
+    /**
+     * 플레이어와 인접한 보스 문 타일 좌표 (챕터보스 문 우선)
+     * @return {x, y}, 인접한 문이 없으면 null
+     */
+    public int[] getAdjacentBossDoor(int px, int py) {
         int[] dx = {-1, 1, 0, 0};
         int[] dy = {0, 0, -1, 1};
+        int[] midDoor = null;
         for (int i = 0; i < 4; i++) {
             int nx = px + dx[i];
             int ny = py + dy[i];
             if (isInBounds(nx, ny)) {
                 Tile t = tiles[nx][ny];
-                if (t != null && t.isBossDoorChapter()) return 2;
-                if (t != null && t.isBossDoorMid()) return 1;
+                if (t != null && t.isBossDoorChapter()) return new int[]{nx, ny};
+                if (t != null && t.isBossDoorMid() && midDoor == null) midDoor = new int[]{nx, ny};
             }
         }
-        return 0;
+        return midDoor;
+    }
+
+    /**
+     * 보스 처치 후 해당 문 블록 전체를 바닥으로 바꿔 열어둠 (재진입 방지)
+     * (x, y)와 맞닿은 같은 종류의 문 타일을 모두 변경
+     */
+    public void openBossDoor(int x, int y) {
+        Tile origin = getTile(x, y);
+        if (origin == null || !origin.isBossDoor()) {
+            return;
+        }
+        Tile.TileType doorType = origin.getType();
+        ArrayDeque<int[]> queue = new ArrayDeque<>();
+        queue.add(new int[]{x, y});
+        while (!queue.isEmpty()) {
+            int[] c = queue.poll();
+            Tile t = getTile(c[0], c[1]);
+            if (t == null || t.getType() != doorType) {
+                continue;
+            }
+            tiles[c[0]][c[1]] = new Tile('.', true);
+            queue.add(new int[]{c[0] + 1, c[1]});
+            queue.add(new int[]{c[0] - 1, c[1]});
+            queue.add(new int[]{c[0], c[1] + 1});
+            queue.add(new int[]{c[0], c[1] - 1});
+        }
     }
 
     public MapGenerator getGenerator() {
