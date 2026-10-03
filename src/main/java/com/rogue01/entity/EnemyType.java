@@ -50,13 +50,6 @@ public enum EnemyType {
         return experience;
     }
 
-    /** 2층 중간보스 여부 (계단 봉인 해제에 반영). 향후 6종 추가 시 확장 */
-    public boolean isMidBoss() {
-        return this == TROLL;
-    }
-
-    /** 3층 챕터 보스 여부 (1-3/2-3→챕터 전환, 3-3→게임 클리어). 향후 3종 추가 시 확장 */
-    public boolean isChapterBoss() {
-        return this == DRAGON;
-    }
+    // 보스 여부는 타입이 아니라 "보스 문에서 시작된 전투"로 판정 (Game.battleBossDoorType)
+    // 보스 문 → 타입 매핑은 Game.createBossFromDoorType 참고 (중간보스=TROLL, 챕터보스=DRAGON)
 }

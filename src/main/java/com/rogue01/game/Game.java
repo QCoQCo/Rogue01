@@ -50,6 +50,13 @@ public class Game {
     private int midBossDefeatedCount; // 2층 전용: 중간보스 처치 수 (1 이상이면 계단 활성화)
     /** BOSS_DOOR_PROMPT 시 대기 중인 보스 타입: 1=중간보스, 2=챕터보스 */
     private int pendingBossDoorType;
+    /** BOSS_DOOR_PROMPT 시 대기 중인 문 타일 좌표 */
+    private int pendingBossDoorX;
+    private int pendingBossDoorY;
+    /** 현재 전투가 보스 문에서 시작됐으면 문 타입(1/2), 일반 전투면 0 */
+    private int battleBossDoorType;
+    private int battleBossDoorX;
+    private int battleBossDoorY;
 
     public Game() {
         this.gameState = GameState.MENU;
@@ -183,9 +190,11 @@ public class Game {
         // 상호작용 (F키)
         if (KeyBinding.isPressed(inputHandler, KeyAction.INTERACT)) {
             KeyBinding.consumeKeys(inputHandler, KeyAction.INTERACT);
-            int doorType = map.getAdjacentBossDoorType(player.getX(), player.getY());
-            if (doorType > 0) {
-                pendingBossDoorType = doorType;
+            int[] door = map.getAdjacentBossDoor(player.getX(), player.getY());
+            if (door != null) {
+                pendingBossDoorType = map.getTile(door[0], door[1]).isBossDoorChapter() ? 2 : 1;
+                pendingBossDoorX = door[0];
+                pendingBossDoorY = door[1];
                 setGameState(GameState.BOSS_DOOR_PROMPT);
                 return true;
             }
@@ -302,15 +311,20 @@ public class Game {
                     enemies.remove(battleManager.getEnemy());
                     killCount++;
 
-                    Enemy defeatedEnemy = battleManager.getEnemy();
+                    // 보스 판정은 적 타입이 아니라 "보스 문에서 시작된 전투"인지로 결정
+                    // (맵에 일반 스폰된 트롤/드래곤은 보스가 아님)
+                    int bossDoorType = battleBossDoorType;
+                    if (bossDoorType != 0) {
+                        map.openBossDoor(battleBossDoorX, battleBossDoorY);
+                    }
 
                     // 2층: 중간보스 처치 시에만 계단 봉인 해제
-                    if (currentLevel == 2 && defeatedEnemy.getType().isMidBoss()) {
+                    if (currentLevel == 2 && bossDoorType == 1) {
                         incrementMidBossDefeatedCount();
                     }
 
                     // 3층: 챕터 보스 처치 시 → 챕터 전환 또는 게임 클리어
-                    if (currentLevel == 3 && defeatedEnemy.getType().isChapterBoss()) {
+                    if (currentLevel == 3 && bossDoorType == 2) {
                         if (currentChapter == 3) {
                             setGameState(GameState.GAME_CLEAR);
                         } else {
@@ -414,7 +428,18 @@ public class Game {
      */
     private void startBattle(Enemy enemy, int dropX, int dropY) {
         battleManager = new BattleManager(player, enemy, dropX, dropY, difficulty);
+        battleBossDoorType = 0;
         setGameState(GameState.BATTLE);
+    }
+
+    /**
+     * 보스 문에서 시작하는 전투 (승리 시 문 개방 및 층 진행 판정에 사용)
+     */
+    private void startBossBattle(Enemy boss, int doorType, int doorX, int doorY) {
+        startBattle(boss, player.getX(), player.getY());
+        battleBossDoorType = doorType;
+        battleBossDoorX = doorX;
+        battleBossDoorY = doorY;
     }
 
     /**
@@ -454,11 +479,9 @@ public class Game {
     private void handleBossDoorPromptState() {
         if (KeyBinding.isPressed(gameWindow.getInputHandler(), KeyAction.INTERACT)) {
             KeyBinding.consumeKeys(gameWindow.getInputHandler(), KeyAction.INTERACT);
-            Enemy boss = createBossFromDoorType(pendingBossDoorType);
+            Enemy boss = createBossFromDoorType(pendingBossDoorType, pendingBossDoorX, pendingBossDoorY);
             if (boss != null) {
-                int dropX = player.getX();
-                int dropY = player.getY();
-                startBattle(boss, dropX, dropY);
+                startBossBattle(boss, pendingBossDoorType, pendingBossDoorX, pendingBossDoorY);
             }
         } else if (KeyBinding.isPressed(gameWindow.getInputHandler(), KeyAction.PAUSE)
                 || KeyBinding.isPressed(gameWindow.getInputHandler(), KeyAction.CLOSE)) {
@@ -470,11 +493,12 @@ public class Game {
 
     /**
      * 보스 문 타입에 따른 보스 생성 (맵에 스폰하지 않음, 전투용)
+     * 위치는 문 타일로 두어 도망 시 문 반대 방향으로 물러나도록 함
      */
-    private Enemy createBossFromDoorType(int doorType) {
+    private Enemy createBossFromDoorType(int doorType, int doorX, int doorY) {
         EnemyType type = doorType == 2 ? EnemyType.DRAGON : EnemyType.TROLL;
         double scale = GameBalance.getEnemyStatScale(currentChapter, currentLevel);
-        return new Enemy(0, 0, type, scale);
+        return new Enemy(doorX, doorY, type, scale);
     }
 
     /**

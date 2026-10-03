@@ -65,20 +65,20 @@
 <details>
 <summary><strong>📷 스크린샷 보기 (클릭하여 펼치기)</strong></summary>
 
-| | |
-|:---:|:---:|
-| <img src="demo/main.png" alt="메인 메뉴" width="100%"> | <img src="demo/combat.png" alt="전투" width="100%"> |
-| **메인 메뉴** · 난이도 선택 | **전투** · JRPG 스타일 |
-| <img src="demo/inventory.png" alt="인벤토리" width="100%"> | <img src="demo/stair.png" alt="계단" width="100%"> |
-| **인벤토리** · 장비·아이템 | **계단** · 다음 층 진입 |
-| <img src="demo/stair2.png" alt="계단 2층" width="100%"> | <img src="demo/stair3.png" alt="봉인 해제" width="100%"> |
-| **2층** · 봉인된 계단 | **봉인 해제** · 중간보스 처치 후 |
-| <img src="demo/boss_door.png" alt="중간보스 문" width="100%"> | <img src="demo/chapter_boss_door.png" alt="챕터 보스 문" width="100%"> |
-| **중간보스방 문** · 3×4 | **챕터 보스방 문** · 4×12 역십자가 |
-| <img src="demo/door_interact.png" alt="문 상호작용" width="100%"> | <img src="demo/world1.png" alt="맵 뷰" width="100%"> |
-| **문 상호작용** · F키 진입 선택 | **맵 뷰** · M키 |
-| <img src="demo/world2.png" alt="맵 뷰 범례" width="100%"> | <img src="demo/next_chapter.png" alt="챕터 전환" width="100%"> |
-| **맵 뷰** · 범례(계단·보스방) | **챕터 전환** · 보스 처치 후 |
+|                                                                   |                                                                        |
+| :---------------------------------------------------------------: | :--------------------------------------------------------------------: |
+|      <img src="demo/main.png" alt="메인 메뉴" width="100%">       |          <img src="demo/combat.png" alt="전투" width="100%">           |
+|                    **메인 메뉴** · 난이도 선택                    |                         **전투** · JRPG 스타일                         |
+|    <img src="demo/inventory.png" alt="인벤토리" width="100%">     |           <img src="demo/stair.png" alt="계단" width="100%">           |
+|                    **인벤토리** · 장비·아이템                     |                        **계단** · 다음 층 진입                         |
+|      <img src="demo/stair2.png" alt="계단 2층" width="100%">      |        <img src="demo/stair3.png" alt="봉인 해제" width="100%">        |
+|                       **2층** · 봉인된 계단                       |                    **봉인 해제** · 중간보스 처치 후                    |
+|   <img src="demo/boss_door.png" alt="중간보스 문" width="100%">   | <img src="demo/chapter_boss_door.png" alt="챕터 보스 문" width="100%"> |
+|                      **중간보스방 문** · 3×4                      |                   **챕터 보스방 문** · 4×12 역십자가                   |
+| <img src="demo/door_interact.png" alt="문 상호작용" width="100%"> |          <img src="demo/world1.png" alt="맵 뷰" width="100%">          |
+|                  **문 상호작용** · F키 진입 선택                  |                            **맵 뷰** · M키                             |
+|     <img src="demo/world2.png" alt="맵 뷰 범례" width="100%">     |     <img src="demo/next_chapter.png" alt="챕터 전환" width="100%">     |
+|                   **맵 뷰** · 범례(계단·보스방)                   |                      **챕터 전환** · 보스 처치 후                      |
 
 </details>
 
@@ -205,20 +205,20 @@ src/main/java/com/rogue01/
 <details>
 <summary><strong>📷 スクリーンショットを見る（クリックで展開）</strong></summary>
 
-| | |
-|:---:|:---:|
-| <img src="demo/main.png" alt="メインメニュー" width="100%"> | <img src="demo/combat.png" alt="戦闘" width="100%"> |
-| **メインメニュー** · 難易度選択 | **戦闘** · JRPGスタイル |
-| <img src="demo/inventory.png" alt="インベントリ" width="100%"> | <img src="demo/stair.png" alt="階段" width="100%"> |
-| **インベントリ** · 装備・アイテム | **階段** · 次の階へ |
-| <img src="demo/stair2.png" alt="2階階段" width="100%"> | <img src="demo/stair3.png" alt="封印解除" width="100%"> |
-| **2階** · 封印された階段 | **封印解除** · 中ボス撃破後 |
-| <img src="demo/boss_door.png" alt="中ボス扉" width="100%"> | <img src="demo/chapter_boss_door.png" alt="チャプターボス扉" width="100%"> |
-| **中ボス部屋の扉** · 3×4 | **チャプターボス部屋の扉** · 4×12逆十字 |
-| <img src="demo/door_interact.png" alt="扉操作" width="100%"> | <img src="demo/world1.png" alt="マップビュー" width="100%"> |
-| **扉操作** · Fキーで進入選択 | **マップビュー** · Mキー |
-| <img src="demo/world2.png" alt="マップ凡例" width="100%"> | <img src="demo/next_chapter.png" alt="チャプター遷移" width="100%"> |
-| **マップビュー** · 凡例（階段・ボス部屋） | **チャプター遷移** · ボス撃破後 |
+|                                                                |                                                                            |
+| :------------------------------------------------------------: | :------------------------------------------------------------------------: |
+|  <img src="demo/main.png" alt="メインメニュー" width="100%">   |            <img src="demo/combat.png" alt="戦闘" width="100%">             |
+|                **メインメニュー** · 難易度選択                 |                          **戦闘** · JRPGスタイル                           |
+| <img src="demo/inventory.png" alt="インベントリ" width="100%"> |             <img src="demo/stair.png" alt="階段" width="100%">             |
+|               **インベントリ** · 装備・アイテム                |                            **階段** · 次の階へ                             |
+|     <img src="demo/stair2.png" alt="2階階段" width="100%">     |          <img src="demo/stair3.png" alt="封印解除" width="100%">           |
+|                    **2階** · 封印された階段                    |                        **封印解除** · 中ボス撃破後                         |
+|   <img src="demo/boss_door.png" alt="中ボス扉" width="100%">   | <img src="demo/chapter_boss_door.png" alt="チャプターボス扉" width="100%"> |
+|                    **中ボス部屋の扉** · 3×4                    |                  **チャプターボス部屋の扉** · 4×12逆十字                   |
+|  <img src="demo/door_interact.png" alt="扉操作" width="100%">  |        <img src="demo/world1.png" alt="マップビュー" width="100%">         |
+|                  **扉操作** · Fキーで進入選択                  |                          **マップビュー** · Mキー                          |
+|   <img src="demo/world2.png" alt="マップ凡例" width="100%">    |    <img src="demo/next_chapter.png" alt="チャプター遷移" width="100%">     |
+|           **マップビュー** · 凡例（階段・ボス部屋）            |                      **チャプター遷移** · ボス撃破後                       |
 
 </details>
 
