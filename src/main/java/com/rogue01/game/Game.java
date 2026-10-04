@@ -77,28 +77,14 @@ public class Game {
         // InputManager에 Game 인스턴스 설정
         this.inputManager.setGame(this);
 
-        // 테스트 아이템 추가
-        addTestItems();
-
-        // 난이도 (기본: 보통) - spawnEnemies 등에서 사용하므로 먼저 설정
+        // 난이도 (기본: 보통) - 메뉴에서 변경 후 startNewGame()에서 스폰에 반영
         this.difficulty = GameBalance.Difficulty.NORMAL;
 
-        // 챕터/레벨 초기화 및 맵 재생성 (계단 배치)
         this.currentChapter = 1;
         this.currentLevel = 1;
         this.midBossDefeatedCount = 0;
-        map.regenerate(Map.MapGeneratorType.HYBRID, 1, 1);
-        player.setPosition(map.getGenerationInfo().getPlayerStartX(), map.getGenerationInfo().getPlayerStartY());
-
-        // 적 스폰
-        spawnEnemies();
-
-        // 게임 통계 초기화
-        this.killCount = 0;
-        this.gameStartTime = System.currentTimeMillis();
-
-        // 턴제: 플레이어 턴부터 시작
         this.turnPhase = TurnPhase.PLAYER_TURN;
+        // 맵 생성·적 스폰·통계 초기화는 메뉴에서 시작할 때 startNewGame()이 담당
     }
 
     /**
@@ -538,40 +524,33 @@ public class Game {
     }
 
     /**
-     * 게임 재시작
+     * 새 게임 시작 (메뉴에서 시작 / 재시작 공통)
+     * 챕터·레벨을 먼저 1-1로 되돌린 뒤 맵 생성과 스폰을 해야 이전 진행도의 배율이 섞이지 않음
      */
-    public void restartGame() {
-        // 맵 재생성 (챕터 1-1로 초기화)
-        map.regenerate(Map.MapGeneratorType.HYBRID, 1, 1);
-
-        // 플레이어 초기화
-        int startX = map.getGenerationInfo().getPlayerStartX();
-        int startY = map.getGenerationInfo().getPlayerStartY();
-        player.setPosition(startX, startY);
-        player.resetLevelAndStats();
-        player.getInventory().clear();
-        addTestItems();
-
-        // 적 초기화
-        enemies.clear();
-        mapItems.clear();
-        spawnEnemies();
-
-        // 전투 상태 초기화
-        battleManager = null;
-
-        // 게임 통계 초기화
-        killCount = 0;
-        gameStartTime = System.currentTimeMillis();
-
-        turnPhase = TurnPhase.PLAYER_TURN;
-
+    public void startNewGame() {
         // 챕터/레벨 초기화
         currentChapter = 1;
         currentLevel = 1;
         midBossDefeatedCount = 0;
 
-        setGameState(GameState.PLAYING);
+        // 플레이어 초기화
+        player.resetLevelAndStats();
+        player.getInventory().clear();
+        addTestItems();
+
+        // 게임 통계 초기화 (메뉴에 머문 시간은 생존 시간에서 제외)
+        killCount = 0;
+        gameStartTime = System.currentTimeMillis();
+
+        // 맵 재생성 + 현재 난이도로 적 스폰 + PLAYING 전환
+        advanceToNextFloor();
+    }
+
+    /**
+     * 게임 재시작
+     */
+    public void restartGame() {
+        startNewGame();
     }
 
     /**

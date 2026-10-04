@@ -9,10 +9,11 @@ public class RandomUtils {
     private final Random random;
 
     /**
-     * 기본 생성자 - 현재 시간을 시드로 사용
+     * 기본 생성자 - 인스턴스마다 서로 다른 시드 사용
+     * (currentTimeMillis 시드는 같은 밀리초에 만든 인스턴스끼리 난수열이 똑같아짐)
      */
     public RandomUtils() {
-        this(System.currentTimeMillis());
+        this(new Random());
     }
 
     /**

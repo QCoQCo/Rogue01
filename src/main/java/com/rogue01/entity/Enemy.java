@@ -118,7 +118,7 @@ public class Enemy extends Entity {
      * 랜덤 이동 (다른 적이 있는 타일로는 이동하지 않음)
      */
     private void randomMove(Map map, List<Enemy> allEnemies) {
-        int direction = randomUtils.nextInt(4);
+        int direction = randomUtils.nextInt(0, 3); // nextInt(max)는 max 포함이라 0~3 범위를 명시
         int newX = x;
         int newY = y;
 

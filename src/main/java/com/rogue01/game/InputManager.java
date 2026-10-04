@@ -70,7 +70,8 @@ public class InputManager {
     private void handleMenuInput() {
         if (KeyBinding.isPressed(inputHandler, KeyAction.START_GAME)) {
             if (game != null) {
-                game.setGameState(GameState.PLAYING);
+                // 메뉴에서 고른 난이도로 맵 생성·적 스폰
+                game.startNewGame();
             }
             inputHandler.clearKeys();
         } else if (KeyBinding.isPressed(inputHandler, KeyAction.DIFFICULTY_EASY) && game != null) {
@@ -208,7 +209,7 @@ public class InputManager {
             game.restartGame();
             inputHandler.clearKeys();
         } else if (KeyBinding.isPressed(inputHandler, KeyAction.MAIN_MENU)) {
-            game.restartGame();
+            // 새 게임은 메뉴에서 시작할 때 startNewGame()으로 생성 (난이도 재선택 반영)
             game.setGameState(GameState.MENU);
             inputHandler.clearKeys();
         } else if (KeyBinding.isPressed(inputHandler, KeyAction.QUIT)) {
@@ -227,7 +228,7 @@ public class InputManager {
             game.restartGame();
             inputHandler.clearKeys();
         } else if (KeyBinding.isPressed(inputHandler, KeyAction.MAIN_MENU)) {
-            game.restartGame();
+            // 새 게임은 메뉴에서 시작할 때 startNewGame()으로 생성 (난이도 재선택 반영)
             game.setGameState(GameState.MENU);
             inputHandler.clearKeys();
         } else if (KeyBinding.isPressed(inputHandler, KeyAction.QUIT)) {
