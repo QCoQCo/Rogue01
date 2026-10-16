@@ -31,8 +31,8 @@ public class GameWindow extends JFrame {
         this.gamePanel = new GamePanel();
 
         add(gamePanel);
-        addKeyListener(inputHandler);
-        // 전투 화면 키 입력 처리
+        // 전투 화면 키 입력 처리 - inputHandler보다 먼저 등록해야 전투 화면이 consume한 키
+        // (예: 아이템 메뉴를 닫는 ESC)가 게임 로직의 일시정지로 중복 처리되지 않음
         addKeyListener(new java.awt.event.KeyAdapter() {
             @Override
             public void keyPressed(java.awt.event.KeyEvent e) {
@@ -41,6 +41,7 @@ public class GameWindow extends JFrame {
                 }
             }
         });
+        addKeyListener(inputHandler);
         // GamePanel에 직접 마우스 리스너 추가
         gamePanel.addMouseListener(new java.awt.event.MouseAdapter() {
             @Override
@@ -1150,14 +1151,8 @@ public class GameWindow extends JFrame {
             if (battleScreen != null) {
                 battleScreen.handleInput(e);
             }
-
-            // 전투 종료 후 아무 키나 눌러 계속
-            BattleManager battleManager = currentGame.getBattleManager();
-            if (battleManager != null && battleManager.isBattleEnded()) {
-                if (e.getKeyCode() != KeyEvent.VK_UP && e.getKeyCode() != KeyEvent.VK_DOWN) {
-                    // 전투 종료 처리 (Game 클래스에서 처리됨)
-                }
-            }
+            // 전투 종료 후 "아무 키나 눌러 계속"은 Game.handleBattleState에서 처리
+            // (BattleScreen은 종료 후 키를 consume하지 않으므로 inputHandler로 전달됨)
         }
     }
 }

@@ -58,6 +58,11 @@ public class Game {
     private int battleBossDoorX;
     private int battleBossDoorY;
 
+    /** 전투 결과 화면 최소 표시 시간 (키를 누르고 있어도 결과가 바로 넘어가지 않도록) */
+    private static final long BATTLE_RESULT_MIN_DISPLAY_MS = 500;
+    /** 전투 결과 화면을 띄운 시각 (0이면 아직 결과 미확정) */
+    private long battleResultShownAt;
+
     public Game() {
         this.gameState = GameState.MENU;
         this.gameLoop = new GameLoop();
@@ -167,8 +172,9 @@ public class Game {
 
     /**
      * 플레이어 턴 처리 - 이동 또는 대기
-     * 
-     * @return true if player acted (moved or waited), false otherwise
+     *
+     * @return 턴을 소모했으면 true (이동·대기). 보스 문 프롬프트, 계단 이동, 전투 시작은
+     *         상태가 바뀌는 행동이라 턴을 넘기지 않음 (적이 공짜 턴을 받지 않도록)
      */
     private boolean processPlayerTurn() {
         var inputHandler = gameWindow.getInputHandler();
@@ -182,10 +188,10 @@ public class Game {
                 pendingBossDoorX = door[0];
                 pendingBossDoorY = door[1];
                 setGameState(GameState.BOSS_DOOR_PROMPT);
-                return true;
+                return false;
             }
             if (tryUseStairs()) {
-                return true;
+                return false; // 새 층은 플레이어 턴부터 시작 (advanceToNextFloor)
             }
         }
 
@@ -220,7 +226,7 @@ public class Game {
             Enemy enemyAtTarget = getEnemyAt(targetX, targetY);
             if (enemyAtTarget != null) {
                 startBattle(enemyAtTarget, targetX, targetY);
-                return true; // 행동함 (전투 시작)
+                return false; // 전투 종료 후 플레이어 턴부터 재개 (finishBattle)
             }
 
             // 이동 가능하면 이동
@@ -282,59 +288,73 @@ public class Game {
 
     /**
      * 전투 상태 처리
+     * 결과가 확정되면 보상을 먼저 처리해 결과 화면(승리/패배/도망 + 로그)을 보여주고,
+     * 최소 표시 시간이 지난 뒤 키를 누르면 finishBattle로 다음 상태로 넘어감
      */
     private void handleBattleState() {
-        if (battleManager != null) {
-            battleManager.update();
-
-            // 전투 종료 체크
-            if (battleManager.isBattleEnded()) {
-                BattleManager.BattleResult result = battleManager.getResult();
-
-                if (result == BattleManager.BattleResult.VICTORY) {
-                    battleManager.processRewards();
-                    dropItemFromEnemy(battleManager.getEnemy(), battleManager.getDropX(), battleManager.getDropY());
-                    enemies.remove(battleManager.getEnemy());
-                    killCount++;
-
-                    // 보스 판정은 적 타입이 아니라 "보스 문에서 시작된 전투"인지로 결정
-                    // (맵에 일반 스폰된 트롤/드래곤은 보스가 아님)
-                    int bossDoorType = battleBossDoorType;
-                    if (bossDoorType != 0) {
-                        map.openBossDoor(battleBossDoorX, battleBossDoorY);
-                    }
-
-                    // 2층: 중간보스 처치 시에만 계단 봉인 해제
-                    if (currentLevel == 2 && bossDoorType == 1) {
-                        incrementMidBossDefeatedCount();
-                    }
-
-                    // 3층: 챕터 보스 처치 시 → 챕터 전환 또는 게임 클리어
-                    if (currentLevel == 3 && bossDoorType == 2) {
-                        if (currentChapter == 3) {
-                            setGameState(GameState.GAME_CLEAR);
-                        } else {
-                            setGameState(GameState.CHAPTER_TRANSITION);
-                        }
-                        battleManager = null;
-                        return;
-                    }
-                } else if (result == BattleManager.BattleResult.DEFEAT) {
-                    // 게임 오버
-                    setGameState(GameState.GAME_OVER);
-                } else if (result == BattleManager.BattleResult.ESCAPED) {
-                    // 도망 성공: 플레이어를 적 반대 방향으로 한 칸 이동
-                    movePlayerAwayFromEnemy(battleManager.getEnemy());
-                    turnPhase = TurnPhase.PLAYER_TURN; // 플레이어 턴부터 시작
-                }
-
-                // 전투 종료 후 게임으로 복귀
-                if (result != BattleManager.BattleResult.DEFEAT) {
-                    setGameState(GameState.PLAYING);
-                    battleManager = null;
-                }
-            }
+        if (battleManager == null) {
+            return;
         }
+        battleManager.update();
+        if (!battleManager.isBattleEnded()) {
+            return;
+        }
+
+        var inputHandler = gameWindow.getInputHandler();
+        long now = System.currentTimeMillis();
+        if (battleResultShownAt == 0) {
+            // 결과 확정 첫 프레임: 경험치/레벨업 로그가 결과 화면에 보이도록 여기서 보상 처리
+            if (battleManager.getResult() == BattleManager.BattleResult.VICTORY) {
+                battleManager.processRewards();
+            }
+            battleResultShownAt = now;
+            inputHandler.clearKeys(); // 마지막 행동에 쓴 키가 결과 화면을 바로 넘기지 않도록
+            return;
+        }
+        if (now - battleResultShownAt < BATTLE_RESULT_MIN_DISPLAY_MS || !inputHandler.isAnyKeyPressed()) {
+            return;
+        }
+        finishBattle(battleManager.getResult());
+    }
+
+    /**
+     * 결과 화면 확인 후 전투 결과 반영 및 상태 전환
+     */
+    private void finishBattle(BattleManager.BattleResult result) {
+        // 새 상태는 플레이어 턴부터 시작 (전투 직후 적이 먼저 움직이지 않도록)
+        turnPhase = TurnPhase.PLAYER_TURN;
+        Enemy enemy = battleManager.getEnemy();
+        GameState nextState = GameState.PLAYING;
+
+        if (result == BattleManager.BattleResult.VICTORY) {
+            dropItemFromEnemy(enemy, battleManager.getDropX(), battleManager.getDropY());
+            enemies.remove(enemy);
+            killCount++;
+
+            // 보스 판정은 적 타입이 아니라 "보스 문에서 시작된 전투"인지로 결정
+            // (맵에 일반 스폰된 트롤/드래곤은 보스가 아님)
+            if (battleBossDoorType != 0) {
+                map.openBossDoor(battleBossDoorX, battleBossDoorY);
+            }
+
+            // 2층: 중간보스 처치 시에만 계단 봉인 해제
+            if (currentLevel == 2 && battleBossDoorType == 1) {
+                incrementMidBossDefeatedCount();
+            }
+
+            // 3층: 챕터 보스 처치 시 → 챕터 전환 또는 게임 클리어
+            if (currentLevel == 3 && battleBossDoorType == 2) {
+                nextState = currentChapter == 3 ? GameState.GAME_CLEAR : GameState.CHAPTER_TRANSITION;
+            }
+        } else if (result == BattleManager.BattleResult.DEFEAT) {
+            nextState = GameState.GAME_OVER;
+        } else if (result == BattleManager.BattleResult.ESCAPED) {
+            // 도망 성공: 플레이어를 적 반대 방향으로 한 칸 이동
+            movePlayerAwayFromEnemy(enemy);
+        }
+
+        battleManager = null;
+        setGameState(nextState);
     }
 
     /**
@@ -415,6 +435,7 @@ public class Game {
     private void startBattle(Enemy enemy, int dropX, int dropY) {
         battleManager = new BattleManager(player, enemy, dropX, dropY, difficulty);
         battleBossDoorType = 0;
+        battleResultShownAt = 0;
         setGameState(GameState.BATTLE);
     }
 

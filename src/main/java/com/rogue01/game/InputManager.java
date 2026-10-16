@@ -180,6 +180,10 @@ public class InputManager {
      * 전투 상태 입력 처리
      */
     private void handleBattleInput() {
+        // 결과 화면에서는 ESC도 "아무 키나 눌러 계속"으로 처리 (Game.handleBattleState)
+        if (game != null && game.getBattleManager() != null && game.getBattleManager().isBattleEnded()) {
+            return;
+        }
         if (KeyBinding.isPressed(inputHandler, KeyAction.PAUSE)) {
             if (game != null) {
                 game.setGameState(GameState.PAUSED);

@@ -14,6 +14,10 @@ public class InputHandler extends KeyAdapter {
 
     @Override
     public void keyPressed(KeyEvent e) {
+        // 먼저 등록된 리스너(전투 화면 등)가 처리한 키는 게임 로직에 다시 전달하지 않음
+        if (e.isConsumed()) {
+            return;
+        }
         pressedKeys.add(e.getKeyCode());
     }
 
@@ -28,6 +32,11 @@ public class InputHandler extends KeyAdapter {
 
     public boolean isKeyPressed(char key) {
         return isKeyPressed(Character.toUpperCase(key));
+    }
+
+    /** 아무 키나 눌려 있는지 ("아무 키나 눌러 계속" 처리용) */
+    public boolean isAnyKeyPressed() {
+        return !pressedKeys.isEmpty();
     }
 
     public void clearKeys() {

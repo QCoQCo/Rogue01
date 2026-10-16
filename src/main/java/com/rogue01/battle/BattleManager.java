@@ -25,6 +25,8 @@ public class BattleManager {
     private boolean playerTurn;
     private boolean battleEnded;
     private BattleResult result;
+    /** 방어 자세 (다음 적 공격 1회 피해 감소) */
+    private boolean defending;
 
     public enum BattleState {
         STARTING, // 전투 시작
@@ -50,12 +52,20 @@ public class BattleManager {
     }
 
     public BattleManager(Player player, Enemy enemy, int dropX, int dropY, GameBalance.Difficulty difficulty) {
+        this(player, enemy, dropX, dropY, difficulty, new RandomUtils());
+    }
+
+    /**
+     * @param randomUtils 크리티컬/데미지 변동/도망 판정용 난수 (테스트에서 시드 고정용)
+     */
+    public BattleManager(Player player, Enemy enemy, int dropX, int dropY, GameBalance.Difficulty difficulty,
+            RandomUtils randomUtils) {
         this.player = player;
         this.enemy = enemy;
         this.dropX = dropX;
         this.dropY = dropY;
         this.difficulty = difficulty != null ? difficulty : GameBalance.Difficulty.NORMAL;
-        this.randomUtils = new RandomUtils();
+        this.randomUtils = randomUtils;
         this.battleLog = new ArrayList<>();
         this.turnNumber = 0;
         this.battleState = BattleState.STARTING;
@@ -160,9 +170,9 @@ public class BattleManager {
      * 플레이어 방어 실행
      */
     private void executePlayerDefend() {
+        // 다음 적 공격 1회의 피해를 GameBalance.DEFEND_DAMAGE_MULTIPLIER만큼 감소
+        defending = true;
         addLog(player.getName() + "는(은) 방어 자세를 취했다!");
-        // 방어 시 다음 턴에 받는 데미지 감소 (50%)
-        // 이는 임시 버프로 구현 가능 (나중에 확장)
     }
 
     /**
@@ -195,10 +205,18 @@ public class BattleManager {
         // 크리티컬 체크 (5% 확률)
         boolean isCritical = randomUtils.nextBoolean(0.05);
         int damage = calculateDamage(enemyAttack, playerDefense, isCritical);
+        boolean defended = defending;
+        if (defended) {
+            damage = Math.max(1, (int) Math.ceil(damage * GameBalance.DEFEND_DAMAGE_MULTIPLIER));
+            defending = false; // 방어는 적 공격 1회에만 적용
+        }
 
         player.takeDamage(damage);
 
         String message = isCritical ? "크리티컬 히트! " + damage + "의 데미지!" : enemy.getName() + "의 공격! " + damage + "의 데미지!";
+        if (defended) {
+            message += " (방어로 피해 감소)";
+        }
         addLog(message);
 
         if (player.isDead()) {

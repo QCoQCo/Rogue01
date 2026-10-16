@@ -29,6 +29,10 @@ public class GameBalance {
     public static final int PLAYER_BASE_DEFENSE = 3;
     public static final int PLAYER_DEFENSE_PER_LEVEL = 1;
 
+    // === 전투 ===
+    /** 방어 자세일 때 받는 피해 배율 (다음 적 공격 1회) */
+    public static final double DEFEND_DAMAGE_MULTIPLIER = 0.5;
+
     // === 경험치 곡선 ===
     public static final int EXP_BASE = 45;
     public static final int EXP_PER_LEVEL = 35;
