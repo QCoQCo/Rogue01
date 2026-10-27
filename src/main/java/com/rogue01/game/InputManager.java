@@ -1,12 +1,15 @@
 package com.rogue01.game;
 
+import com.rogue01.battle.BattleManager;
+import com.rogue01.battle.BattleScreen;
 import com.rogue01.util.InputHandler;
 import com.rogue01.util.KeyBinding;
 import com.rogue01.util.KeyBinding.KeyAction;
 import com.rogue01.entity.Player;
 
 /**
- * 게임 입력 처리를 담당하는 매니저 클래스
+ * 게임 입력 처리를 담당하는 매니저 클래스 - 키 입력을 읽는 유일한 곳
+ * 상태별로 키를 해석해 Game/GameWindow/BattleScreen의 행동 메서드를 호출
  * 키 바인딩은 {@link KeyBinding}에서 중앙 관리
  */
 public class InputManager {
@@ -50,7 +53,7 @@ public class InputManager {
                 handleBattleInput();
                 break;
             case BOSS_DOOR_PROMPT:
-                // Game에서 F/ESC 처리
+                handleBossDoorPromptInput();
                 break;
             case GAME_OVER:
                 handleGameOverInput();
@@ -107,9 +110,60 @@ public class InputManager {
                 game.setGameState(GameState.MAP_VIEW);
             }
             inputHandler.clearKeys();
+        } else if (game != null) {
+            handlePlayerActionInput();
+        }
+    }
+
+    /**
+     * 탐험 중 플레이어 행동 (상호작용 / 대기 / 이동) - 턴 판정은 Game이 담당
+     */
+    private void handlePlayerActionInput() {
+        if (KeyBinding.isPressed(inputHandler, KeyAction.INTERACT)) {
+            KeyBinding.consumeKeys(inputHandler, KeyAction.INTERACT);
+            game.interact();
+            return;
+        }
+        if (KeyBinding.isPressed(inputHandler, KeyAction.TURN)) {
+            KeyBinding.consumeKeys(inputHandler, KeyAction.TURN);
+            game.waitTurn();
+            return;
         }
 
-        // 플레이어 이동은 Game 클래스에서 처리하므로 여기서는 하지 않음
+        int dx = 0, dy = 0;
+        if (KeyBinding.isPressed(inputHandler, KeyAction.MOVE_UP)) {
+            dy = -1;
+        } else if (KeyBinding.isPressed(inputHandler, KeyAction.MOVE_DOWN)) {
+            dy = 1;
+        } else if (KeyBinding.isPressed(inputHandler, KeyAction.MOVE_LEFT)) {
+            dx = -1;
+        } else if (KeyBinding.isPressed(inputHandler, KeyAction.MOVE_RIGHT)) {
+            dx = 1;
+        }
+        if (dx != 0 || dy != 0) {
+            // 한 번 누를 때 한 칸 (누르고 있으면 OS 키 반복으로 계속 이동)
+            KeyBinding.consumeKeys(inputHandler, KeyAction.MOVE_UP);
+            KeyBinding.consumeKeys(inputHandler, KeyAction.MOVE_DOWN);
+            KeyBinding.consumeKeys(inputHandler, KeyAction.MOVE_LEFT);
+            KeyBinding.consumeKeys(inputHandler, KeyAction.MOVE_RIGHT);
+            game.movePlayer(dx, dy);
+        }
+    }
+
+    /**
+     * 보스방 문 프롬프트 입력 처리 (F=진입, ESC=취소)
+     */
+    private void handleBossDoorPromptInput() {
+        if (game == null) {
+            return;
+        }
+        if (KeyBinding.isPressed(inputHandler, KeyAction.INTERACT)) {
+            KeyBinding.consumeKeys(inputHandler, KeyAction.INTERACT);
+            game.enterBossDoor();
+        } else if (KeyBinding.isPressed(inputHandler, KeyAction.CLOSE)) {
+            KeyBinding.consumeKeys(inputHandler, KeyAction.CLOSE);
+            game.cancelBossDoorPrompt();
+        }
     }
 
     /**
@@ -178,19 +232,59 @@ public class InputManager {
 
     /**
      * 전투 상태 입력 처리
+     * - 결과 화면: 아무 키(ESC 포함)로 계속
+     * - 아이템 서브메뉴: ↑↓ 선택, ENTER/SPACE 사용, ESC 닫기 (일시정지 아님)
+     * - 행동 메뉴: ←→(↑↓) 선택, ENTER/SPACE 결정, ESC 일시정지
      */
     private void handleBattleInput() {
-        // 결과 화면에서는 ESC도 "아무 키나 눌러 계속"으로 처리 (Game.handleBattleState)
-        if (game != null && game.getBattleManager() != null && game.getBattleManager().isBattleEnded()) {
+        if (game == null || game.getBattleManager() == null) {
             return;
         }
-        if (KeyBinding.isPressed(inputHandler, KeyAction.PAUSE)) {
-            if (game != null) {
-                game.setGameState(GameState.PAUSED);
+        BattleManager battleManager = game.getBattleManager();
+
+        if (battleManager.isBattleEnded()) {
+            // 최소 표시 시간 전이면 키를 남겨둬서, 누르고 있는 키로 시간이 지나면 넘어가도록 함
+            if (inputHandler.isAnyKeyPressed() && game.acknowledgeBattleResult()) {
+                inputHandler.clearKeys();
             }
-            inputHandler.clearKeys();
+            return;
         }
-        // 전투 메뉴 선택 등은 GameWindow/BattleScreen에서 처리
+
+        BattleScreen screen = game.getGameWindow().getBattleScreen(battleManager);
+        if (screen.isItemSubMenuActive()) {
+            if (KeyBinding.isPressed(inputHandler, KeyAction.CLOSE)) {
+                KeyBinding.consumeKeys(inputHandler, KeyAction.CLOSE);
+                screen.closeItemSubMenu();
+            } else if (KeyBinding.isPressed(inputHandler, KeyAction.BATTLE_MENU_UP)) {
+                KeyBinding.consumeKeys(inputHandler, KeyAction.BATTLE_MENU_UP);
+                screen.moveConsumableSelection(-1);
+            } else if (KeyBinding.isPressed(inputHandler, KeyAction.BATTLE_MENU_DOWN)) {
+                KeyBinding.consumeKeys(inputHandler, KeyAction.BATTLE_MENU_DOWN);
+                screen.moveConsumableSelection(1);
+            } else if (KeyBinding.isPressed(inputHandler, KeyAction.BATTLE_CONFIRM)) {
+                KeyBinding.consumeKeys(inputHandler, KeyAction.BATTLE_CONFIRM);
+                screen.useSelectedConsumable();
+            }
+            return;
+        }
+
+        if (KeyBinding.isPressed(inputHandler, KeyAction.PAUSE)) {
+            game.setGameState(GameState.PAUSED);
+            inputHandler.clearKeys();
+        } else if (KeyBinding.isPressed(inputHandler, KeyAction.BATTLE_MENU_LEFT)
+                || KeyBinding.isPressed(inputHandler, KeyAction.BATTLE_MENU_UP)) {
+            KeyBinding.consumeKeys(inputHandler, KeyAction.BATTLE_MENU_LEFT);
+            KeyBinding.consumeKeys(inputHandler, KeyAction.BATTLE_MENU_UP);
+            screen.moveActionSelection(-1);
+        } else if (KeyBinding.isPressed(inputHandler, KeyAction.BATTLE_MENU_RIGHT)
+                || KeyBinding.isPressed(inputHandler, KeyAction.BATTLE_MENU_DOWN)) {
+            KeyBinding.consumeKeys(inputHandler, KeyAction.BATTLE_MENU_RIGHT);
+            KeyBinding.consumeKeys(inputHandler, KeyAction.BATTLE_MENU_DOWN);
+            screen.moveActionSelection(1);
+        } else if (KeyBinding.isPressed(inputHandler, KeyAction.BATTLE_CONFIRM)) {
+            KeyBinding.consumeKeys(inputHandler, KeyAction.BATTLE_CONFIRM);
+            screen.confirmAction();
+        }
     }
 
     /**

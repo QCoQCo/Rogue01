@@ -31,16 +31,7 @@ public class GameWindow extends JFrame {
         this.gamePanel = new GamePanel();
 
         add(gamePanel);
-        // 전투 화면 키 입력 처리 - inputHandler보다 먼저 등록해야 전투 화면이 consume한 키
-        // (예: 아이템 메뉴를 닫는 ESC)가 게임 로직의 일시정지로 중복 처리되지 않음
-        addKeyListener(new java.awt.event.KeyAdapter() {
-            @Override
-            public void keyPressed(java.awt.event.KeyEvent e) {
-                if (currentGame != null && currentGame.getGameState() == com.rogue01.game.GameState.BATTLE) {
-                    handleBattleInput(e);
-                }
-            }
-        });
+        // 키 입력은 inputHandler 한 곳으로만 받고, 해석은 InputManager가 게임 루프(EDT)에서 담당
         addKeyListener(inputHandler);
         // GamePanel에 직접 마우스 리스너 추가
         gamePanel.addMouseListener(new java.awt.event.MouseAdapter() {
@@ -56,18 +47,25 @@ public class GameWindow extends JFrame {
 
     public void render(Game game) {
         this.currentGame = game; // 현재 게임 인스턴스 저장
-
-        // 전투 종료 시 battleScreen 초기화
-        if (game.getGameState() != com.rogue01.game.GameState.BATTLE) {
-            battleScreen = null;
-        }
-
         gamePanel.render(game);
         repaint();
     }
 
     public InputHandler getInputHandler() {
         return inputHandler;
+    }
+
+    /**
+     * 현재 전투의 전투 화면 (전투가 바뀌면 새로 생성 - 메뉴 선택 상태는 전투마다 초기화)
+     */
+    public BattleScreen getBattleScreen(BattleManager battleManager) {
+        if (battleManager == null) {
+            return null;
+        }
+        if (battleScreen == null || battleScreen.getBattleManager() != battleManager) {
+            battleScreen = new BattleScreen(battleManager);
+        }
+        return battleScreen;
     }
 
     public Game getGame() {
@@ -1076,12 +1074,7 @@ public class GameWindow extends JFrame {
                 return;
             }
 
-            // BattleScreen은 전투 시작 시 한 번만 생성 (선택 상태 유지를 위해)
-            if (battleScreen == null) {
-                battleScreen = new BattleScreen(battleManager);
-            }
-
-            battleScreen.render(g2d, getWidth(), getHeight());
+            getBattleScreen(battleManager).render(g2d, getWidth(), getHeight());
         }
 
         /**
@@ -1140,19 +1133,6 @@ public class GameWindow extends JFrame {
             long min = seconds / 60;
             long sec = seconds % 60;
             return String.format("%d분 %d초", min, sec);
-        }
-    }
-
-    /**
-     * 키 입력 처리 (전투 화면용)
-     */
-    public void handleBattleInput(KeyEvent e) {
-        if (currentGame != null && currentGame.getGameState() == com.rogue01.game.GameState.BATTLE) {
-            if (battleScreen != null) {
-                battleScreen.handleInput(e);
-            }
-            // 전투 종료 후 "아무 키나 눌러 계속"은 Game.handleBattleState에서 처리
-            // (BattleScreen은 종료 후 키를 consume하지 않으므로 inputHandler로 전달됨)
         }
     }
 }

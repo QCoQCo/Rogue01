@@ -1,13 +1,9 @@
 package com.rogue01.entity;
 
-import com.rogue01.util.InputHandler;
-import com.rogue01.util.KeyBinding;
-import com.rogue01.util.KeyBinding.KeyAction;
 import com.rogue01.item.Inventory;
 import com.rogue01.map.Map;
 
 public class Player extends Entity {
-    private InputHandler inputHandler;
     private Inventory inventory;
 
     // 레벨/스탯 시스템
@@ -18,7 +14,6 @@ public class Player extends Entity {
 
     public Player(int x, int y) {
         super(x, y, '†', "Player");
-        this.inputHandler = new InputHandler();
         this.inventory = new Inventory();
         this.level = 1;
         this.experience = 0;
@@ -70,31 +65,11 @@ public class Player extends Entity {
         return com.rogue01.game.GameBalance.getExpToNextLevel(level);
     }
 
+    /**
+     * 플레이어 이동은 턴제로 Game.movePlayer가 처리 (입력은 InputManager 전담)
+     */
     @Override
     public void update(Map map) {
-        if (inputHandler == null)
-            return;
-        if (KeyBinding.isPressed(inputHandler, KeyAction.MOVE_UP)) {
-            if (map.isWalkable(x, y - 1))
-                y--;
-            KeyBinding.consumeKeys(inputHandler, KeyAction.MOVE_UP);
-        } else if (KeyBinding.isPressed(inputHandler, KeyAction.MOVE_DOWN)) {
-            if (map.isWalkable(x, y + 1))
-                y++;
-            KeyBinding.consumeKeys(inputHandler, KeyAction.MOVE_DOWN);
-        } else if (KeyBinding.isPressed(inputHandler, KeyAction.MOVE_LEFT)) {
-            if (map.isWalkable(x - 1, y))
-                x--;
-            KeyBinding.consumeKeys(inputHandler, KeyAction.MOVE_LEFT);
-        } else if (KeyBinding.isPressed(inputHandler, KeyAction.MOVE_RIGHT)) {
-            if (map.isWalkable(x + 1, y))
-                x++;
-            KeyBinding.consumeKeys(inputHandler, KeyAction.MOVE_RIGHT);
-        }
-    }
-
-    public void setInputHandler(InputHandler inputHandler) {
-        this.inputHandler = inputHandler;
     }
 
     public Inventory getInventory() {

@@ -5,6 +5,10 @@ import java.awt.event.KeyEvent;
 import java.util.HashSet;
 import java.util.Set;
 
+/**
+ * 눌린 키 상태 저장소. 키 이벤트와 게임 루프(GameLoop)가 모두 EDT에서 실행되므로 동기화가 필요 없음
+ * 키 해석은 {@link com.rogue01.game.InputManager}가 전담
+ */
 public class InputHandler extends KeyAdapter {
     private Set<Integer> pressedKeys;
 
@@ -14,10 +18,6 @@ public class InputHandler extends KeyAdapter {
 
     @Override
     public void keyPressed(KeyEvent e) {
-        // 먼저 등록된 리스너(전투 화면 등)가 처리한 키는 게임 로직에 다시 전달하지 않음
-        if (e.isConsumed()) {
-            return;
-        }
         pressedKeys.add(e.getKeyCode());
     }
 

@@ -11,8 +11,6 @@ import com.rogue01.item.Item;
 import com.rogue01.item.MapItem;
 import com.rogue01.map.structures.Room;
 import com.rogue01.map.utils.RandomUtils;
-import com.rogue01.util.KeyBinding;
-import com.rogue01.util.KeyBinding.KeyAction;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -73,10 +71,7 @@ public class Game {
         this.mapItems = new ArrayList<>();
         this.randomUtils = new RandomUtils();
 
-        // 플레이어에게 GameWindow의 InputHandler 설정
-        this.player.setInputHandler(this.gameWindow.getInputHandler());
-
-        // InputManager 초기화
+        // InputManager 초기화 (키 입력 해석 전담)
         this.inputManager = new InputManager(this.gameWindow.getInputHandler(), this.player);
 
         // InputManager에 Game 인스턴스 설정
@@ -105,39 +100,22 @@ public class Game {
         gameLoop.start(this);
     }
 
+    /**
+     * 한 프레임 갱신 (GameLoop가 EDT에서 호출 - 키 입력·마우스·렌더링과 같은 스레드)
+     * 입력 해석은 InputManager가 전담하고, 여기서는 입력과 무관한 상태별 진행만 처리
+     */
     public void update() {
-        // InputManager를 통한 입력 처리
         inputManager.handleInput(gameState);
 
-        // 게임 상태에 따른 추가 로직
         switch (gameState) {
-            case MENU:
-                handleMenuState();
-                break;
             case PLAYING:
                 handlePlayingState();
-                break;
-            case PAUSED:
-                handlePausedState();
-                break;
-            case INVENTORY:
-                handleInventoryState();
-                break;
-            case MAP_VIEW:
-                handleMapViewState();
                 break;
             case BATTLE:
                 handleBattleState();
                 break;
-            case BOSS_DOOR_PROMPT:
-                handleBossDoorPromptState();
-                break;
-            case GAME_OVER:
-                handleGameOverState();
-                break;
-            case CHAPTER_TRANSITION:
-            case GAME_CLEAR:
-                // 입력만 처리, 별도 로직 없음
+            default:
+                // 나머지 상태는 입력(InputManager)으로만 전환됨
                 break;
         }
 
@@ -146,99 +124,73 @@ public class Game {
     }
 
     /**
-     * 메뉴 상태 처리
-     */
-    private void handleMenuState() {
-        // ENTER키 처리는 InputManager에서 담당
-        // 여기서는 메뉴 상태에서 필요한 추가 로직만 처리
-    }
-
-    /**
      * 게임 진행 중 상태 처리 (턴제)
-     * 메뉴 키(ESC/I/M)는 InputManager에서 먼저 처리됨
+     * 플레이어 행동(movePlayer/waitTurn/interact)으로 턴이 넘어가면 같은 프레임에 적 턴 처리
      */
     private void handlePlayingState() {
-        if (turnPhase == TurnPhase.PLAYER_TURN) {
-            // 플레이어 턴: 이동 또는 대기
-            if (processPlayerTurn()) {
-                turnPhase = TurnPhase.ENEMY_TURN;
-            }
-        } else {
+        if (turnPhase == TurnPhase.ENEMY_TURN) {
             // 적 턴: 모든 적이 한 칸씩 이동
             processEnemyTurn();
             turnPhase = TurnPhase.PLAYER_TURN;
         }
     }
 
+    /** 플레이어 행동을 받을 수 있는지 (PLAYING 상태의 플레이어 턴) */
+    private boolean canPlayerAct() {
+        return gameState == GameState.PLAYING && turnPhase == TurnPhase.PLAYER_TURN;
+    }
+
     /**
-     * 플레이어 턴 처리 - 이동 또는 대기
-     *
-     * @return 턴을 소모했으면 true (이동·대기). 보스 문 프롬프트, 계단 이동, 전투 시작은
-     *         상태가 바뀌는 행동이라 턴을 넘기지 않음 (적이 공짜 턴을 받지 않도록)
+     * 상호작용 (F): 인접한 보스 문 → 진입 프롬프트, 계단 위 → 다음 층
+     * 상태가 바뀌는 행동이라 턴을 넘기지 않음 (적이 공짜 턴을 받지 않도록)
      */
-    private boolean processPlayerTurn() {
-        var inputHandler = gameWindow.getInputHandler();
+    public void interact() {
+        if (!canPlayerAct()) {
+            return;
+        }
+        int[] door = map.getAdjacentBossDoor(player.getX(), player.getY());
+        if (door != null) {
+            pendingBossDoorType = map.getTile(door[0], door[1]).isBossDoorChapter() ? 2 : 1;
+            pendingBossDoorX = door[0];
+            pendingBossDoorY = door[1];
+            setGameState(GameState.BOSS_DOOR_PROMPT);
+            return;
+        }
+        tryUseStairs(); // 새 층은 플레이어 턴부터 시작 (advanceToNextFloor)
+    }
 
-        // 상호작용 (F키)
-        if (KeyBinding.isPressed(inputHandler, KeyAction.INTERACT)) {
-            KeyBinding.consumeKeys(inputHandler, KeyAction.INTERACT);
-            int[] door = map.getAdjacentBossDoor(player.getX(), player.getY());
-            if (door != null) {
-                pendingBossDoorType = map.getTile(door[0], door[1]).isBossDoorChapter() ? 2 : 1;
-                pendingBossDoorX = door[0];
-                pendingBossDoorY = door[1];
-                setGameState(GameState.BOSS_DOOR_PROMPT);
-                return false;
-            }
-            if (tryUseStairs()) {
-                return false; // 새 층은 플레이어 턴부터 시작 (advanceToNextFloor)
-            }
+    /**
+     * 대기 (Space): 이동 없이 턴 넘기기
+     */
+    public void waitTurn() {
+        if (canPlayerAct()) {
+            turnPhase = TurnPhase.ENEMY_TURN;
+        }
+    }
+
+    /**
+     * 한 칸 이동 시도
+     * - 목표 타일에 적: 전투 시작 (턴 소모 없음, 전투 종료 후 플레이어 턴부터 재개)
+     * - 벽: 아무 일도 없음 (턴 소모 없음)
+     */
+    public void movePlayer(int dx, int dy) {
+        if (!canPlayerAct()) {
+            return;
+        }
+        int targetX = player.getX() + dx;
+        int targetY = player.getY() + dy;
+
+        Enemy enemyAtTarget = getEnemyAt(targetX, targetY);
+        if (enemyAtTarget != null) {
+            startBattle(enemyAtTarget, targetX, targetY);
+            return;
         }
 
-        // 대기 (턴 넘기기)
-        if (KeyBinding.isPressed(inputHandler, KeyAction.TURN)) {
-            KeyBinding.consumeKeys(inputHandler, KeyAction.TURN);
-            return true;
+        if (map.isWalkable(targetX, targetY)) {
+            player.setPosition(targetX, targetY);
+            checkItemPickup();
+            turnPhase = TurnPhase.ENEMY_TURN;
         }
-
-        // 이동 처리
-        int dx = 0, dy = 0;
-        if (KeyBinding.isPressed(inputHandler, KeyAction.MOVE_UP)) {
-            dy = -1;
-        } else if (KeyBinding.isPressed(inputHandler, KeyAction.MOVE_DOWN)) {
-            dy = 1;
-        } else if (KeyBinding.isPressed(inputHandler, KeyAction.MOVE_LEFT)) {
-            dx = -1;
-        } else if (KeyBinding.isPressed(inputHandler, KeyAction.MOVE_RIGHT)) {
-            dx = 1;
-        }
-
-        if (dx != 0 || dy != 0) {
-            int targetX = player.getX() + dx;
-            int targetY = player.getY() + dy;
-
-            KeyBinding.consumeKeys(inputHandler, KeyAction.MOVE_UP);
-            KeyBinding.consumeKeys(inputHandler, KeyAction.MOVE_DOWN);
-            KeyBinding.consumeKeys(inputHandler, KeyAction.MOVE_LEFT);
-            KeyBinding.consumeKeys(inputHandler, KeyAction.MOVE_RIGHT);
-
-            // 목표 타일에 적이 있으면 전투 시작
-            Enemy enemyAtTarget = getEnemyAt(targetX, targetY);
-            if (enemyAtTarget != null) {
-                startBattle(enemyAtTarget, targetX, targetY);
-                return false; // 전투 종료 후 플레이어 턴부터 재개 (finishBattle)
-            }
-
-            // 이동 가능하면 이동
-            if (map.isWalkable(targetX, targetY)) {
-                player.setPosition(targetX, targetY);
-                checkItemPickup();
-                return true;
-            }
-            return false; // 벽이라 이동 못함 - 턴 소모 안 함
-        }
-
-        return false; // 아무 입력 없음
     }
 
     /**
@@ -288,33 +240,38 @@ public class Game {
 
     /**
      * 전투 상태 처리
-     * 결과가 확정되면 보상을 먼저 처리해 결과 화면(승리/패배/도망 + 로그)을 보여주고,
-     * 최소 표시 시간이 지난 뒤 키를 누르면 finishBattle로 다음 상태로 넘어감
+     * 결과가 확정되면 보상을 먼저 처리해 결과 화면(승리/패배/도망 + 로그)을 보여줌
+     * 결과 화면에서 넘어가는 것은 키 입력 시 acknowledgeBattleResult()가 담당
      */
     private void handleBattleState() {
         if (battleManager == null) {
             return;
         }
         battleManager.update();
-        if (!battleManager.isBattleEnded()) {
-            return;
-        }
-
-        var inputHandler = gameWindow.getInputHandler();
-        long now = System.currentTimeMillis();
-        if (battleResultShownAt == 0) {
+        if (battleManager.isBattleEnded() && battleResultShownAt == 0) {
             // 결과 확정 첫 프레임: 경험치/레벨업 로그가 결과 화면에 보이도록 여기서 보상 처리
             if (battleManager.getResult() == BattleManager.BattleResult.VICTORY) {
                 battleManager.processRewards();
             }
-            battleResultShownAt = now;
-            inputHandler.clearKeys(); // 마지막 행동에 쓴 키가 결과 화면을 바로 넘기지 않도록
-            return;
+            battleResultShownAt = System.currentTimeMillis();
+            gameWindow.getInputHandler().clearKeys(); // 마지막 행동에 쓴 키가 결과 화면을 바로 넘기지 않도록
         }
-        if (now - battleResultShownAt < BATTLE_RESULT_MIN_DISPLAY_MS || !inputHandler.isAnyKeyPressed()) {
-            return;
+    }
+
+    /**
+     * 전투 결과 화면에서 키를 눌렀을 때 호출 (InputManager)
+     *
+     * @return 결과를 반영하고 다음 상태로 넘어갔으면 true, 결과 확정 전이거나 최소 표시 시간 전이면 false
+     */
+    public boolean acknowledgeBattleResult() {
+        if (battleManager == null || battleResultShownAt == 0) {
+            return false;
+        }
+        if (System.currentTimeMillis() - battleResultShownAt < BATTLE_RESULT_MIN_DISPLAY_MS) {
+            return false;
         }
         finishBattle(battleManager.getResult());
+        return true;
     }
 
     /**
@@ -382,7 +339,7 @@ public class Game {
     }
 
     /**
-     * 적과의 충돌 체크 (플레이어가 적 타일로 이동한 경우 - processPlayerTurn에서 처리)
+     * 적과의 충돌 체크 (플레이어가 적 타일로 이동한 경우 - movePlayer에서 처리)
      */
     private void checkEnemyCollision() {
         if (gameState == GameState.BATTLE)
@@ -481,19 +438,21 @@ public class Game {
     }
 
     /**
-     * 보스방 문 프롬프트: F=진입(전투 시작), ESC=취소
+     * 보스방 문 프롬프트에서 진입 (F) → 보스 전투 시작
      */
-    private void handleBossDoorPromptState() {
-        if (KeyBinding.isPressed(gameWindow.getInputHandler(), KeyAction.INTERACT)) {
-            KeyBinding.consumeKeys(gameWindow.getInputHandler(), KeyAction.INTERACT);
-            Enemy boss = createBossFromDoorType(pendingBossDoorType, pendingBossDoorX, pendingBossDoorY);
-            if (boss != null) {
-                startBossBattle(boss, pendingBossDoorType, pendingBossDoorX, pendingBossDoorY);
-            }
-        } else if (KeyBinding.isPressed(gameWindow.getInputHandler(), KeyAction.PAUSE)
-                || KeyBinding.isPressed(gameWindow.getInputHandler(), KeyAction.CLOSE)) {
-            KeyBinding.consumeKeys(gameWindow.getInputHandler(), KeyAction.PAUSE);
-            KeyBinding.consumeKeys(gameWindow.getInputHandler(), KeyAction.CLOSE);
+    public void enterBossDoor() {
+        if (gameState != GameState.BOSS_DOOR_PROMPT) {
+            return;
+        }
+        Enemy boss = createBossFromDoorType(pendingBossDoorType, pendingBossDoorX, pendingBossDoorY);
+        startBossBattle(boss, pendingBossDoorType, pendingBossDoorX, pendingBossDoorY);
+    }
+
+    /**
+     * 보스방 문 프롬프트 취소 (ESC) → 탐험으로 복귀 (턴 소모 없음)
+     */
+    public void cancelBossDoorPrompt() {
+        if (gameState == GameState.BOSS_DOOR_PROMPT) {
             setGameState(GameState.PLAYING);
         }
     }
@@ -506,42 +465,6 @@ public class Game {
         EnemyType type = doorType == 2 ? EnemyType.DRAGON : EnemyType.TROLL;
         double scale = GameBalance.getEnemyStatScale(currentChapter, currentLevel);
         return new Enemy(doorX, doorY, type, scale);
-    }
-
-    /**
-     * 일시정지 상태 처리 (InputManager에서 ESC 처리, 여기서는 추가 로직만)
-     */
-    private void handlePausedState() {
-        if (KeyBinding.isPressed(gameWindow.getInputHandler(), KeyAction.PAUSE)) {
-            resumeFromPause();
-        }
-    }
-
-    /**
-     * 인벤토리 상태 처리 (InputManager에서 I/ESC 처리)
-     */
-    private void handleInventoryState() {
-        if (KeyBinding.isPressed(gameWindow.getInputHandler(), KeyAction.INVENTORY)
-                || KeyBinding.isPressed(gameWindow.getInputHandler(), KeyAction.CLOSE)) {
-            setGameState(GameState.PLAYING);
-        }
-    }
-
-    /**
-     * 맵 뷰 상태 처리 (InputManager에서 M/ESC 처리)
-     */
-    private void handleMapViewState() {
-        if (KeyBinding.isPressed(gameWindow.getInputHandler(), KeyAction.MAP_VIEW)
-                || KeyBinding.isPressed(gameWindow.getInputHandler(), KeyAction.CLOSE)) {
-            setGameState(GameState.PLAYING);
-        }
-    }
-
-    /**
-     * 게임 오버 상태 처리
-     */
-    private void handleGameOverState() {
-        // 입력 처리는 InputManager에서 담당 (재시작, 메뉴, 종료)
     }
 
     /**

@@ -4,10 +4,7 @@ import com.rogue01.entity.Player;
 import com.rogue01.entity.Enemy;
 import com.rogue01.item.HealthPotion;
 import com.rogue01.item.Item;
-import com.rogue01.util.KeyBinding;
-import com.rogue01.util.KeyBinding.KeyAction;
 import java.awt.*;
-import java.awt.event.KeyEvent;
 import java.util.List;
 
 /**
@@ -341,70 +338,60 @@ public class BattleScreen {
         }
     }
 
-    /**
-     * 입력 처리
-     */
-    public void handleInput(KeyEvent e) {
-        if (battleManager.isBattleEnded()) {
+    // ===== 입력 (InputManager가 키 바인딩을 해석해 호출) =====
+    // 플레이어 턴이 아니거나 전투가 끝났으면 무시
+
+    private boolean acceptsInput() {
+        return battleManager.isPlayerTurn() && !battleManager.isBattleEnded();
+    }
+
+    /** 행동 메뉴 선택 이동 (delta: -1=이전, +1=다음, 순환) */
+    public void moveActionSelection(int delta) {
+        if (!acceptsInput() || itemSubMenuActive) {
             return;
         }
+        selectedActionIndex = Math.floorMod(selectedActionIndex + delta, actionMenu.length);
+    }
 
-        if (!battleManager.isPlayerTurn()) {
+    /** 선택한 행동 결정 - 아이템이면 소비 아이템 서브메뉴를 염 */
+    public void confirmAction() {
+        if (!acceptsInput() || itemSubMenuActive) {
             return;
         }
-
-        if (itemSubMenuActive) {
-            handleItemSubMenuInput(e);
-            return;
-        }
-
-        if (KeyBinding.matches(e, KeyAction.BATTLE_MENU_LEFT) || KeyBinding.matches(e, KeyAction.BATTLE_MENU_UP)) {
-            selectedActionIndex = (selectedActionIndex - 1 + actionMenu.length) % actionMenu.length;
-            e.consume();
-        } else if (KeyBinding.matches(e, KeyAction.BATTLE_MENU_RIGHT) || KeyBinding.matches(e, KeyAction.BATTLE_MENU_DOWN)) {
-            selectedActionIndex = (selectedActionIndex + 1) % actionMenu.length;
-            e.consume();
-        } else if (KeyBinding.matches(e, KeyAction.BATTLE_CONFIRM)) {
-                if (selectedActionIndex == 2) {
-                    // 아이템: 서브메뉴 열기
-                    List<Item> consumables = battleManager.getConsumables();
-                    if (consumables.isEmpty()) {
-                        // 로그는 BattleManager에서? 아니면 그냥 서브메뉴만 빈 상태로
-                        itemSubMenuActive = true;
-                        selectedConsumableIndex = 0;
-                    } else {
-                        itemSubMenuActive = true;
-                        selectedConsumableIndex = 0;
-                    }
-                } else {
-                    executeSelectedAction();
-                }
-            e.consume();
+        if (selectedActionIndex == 2) {
+            itemSubMenuActive = true;
+            selectedConsumableIndex = 0;
+        } else {
+            executeSelectedAction();
         }
     }
 
-    private void handleItemSubMenuInput(KeyEvent e) {
-        List<Item> consumables = battleManager.getConsumables();
+    public boolean isItemSubMenuActive() {
+        return itemSubMenuActive;
+    }
 
-        if (KeyBinding.matches(e, KeyAction.CLOSE)) {
-            itemSubMenuActive = false;
-            e.consume();
-        } else if (KeyBinding.matches(e, KeyAction.BATTLE_MENU_UP)) {
-            if (!consumables.isEmpty()) {
-                selectedConsumableIndex = (selectedConsumableIndex - 1 + consumables.size()) % consumables.size();
-            }
-            e.consume();
-        } else if (KeyBinding.matches(e, KeyAction.BATTLE_MENU_DOWN)) {
-            if (!consumables.isEmpty()) {
-                selectedConsumableIndex = (selectedConsumableIndex + 1) % consumables.size();
-            }
-            e.consume();
-        } else if (KeyBinding.matches(e, KeyAction.BATTLE_CONFIRM)) {
-            if (!consumables.isEmpty() && battleManager.executeUseConsumable(selectedConsumableIndex)) {
-                itemSubMenuActive = false;
-            }
-            e.consume();
+    /** 소비 아이템 선택 이동 (delta: -1=위, +1=아래, 순환) */
+    public void moveConsumableSelection(int delta) {
+        List<Item> consumables = battleManager.getConsumables();
+        if (!acceptsInput() || !itemSubMenuActive || consumables.isEmpty()) {
+            return;
         }
+        selectedConsumableIndex = Math.floorMod(selectedConsumableIndex + delta, consumables.size());
+    }
+
+    /** 선택한 소비 아이템 사용 - 사용에 성공하면 서브메뉴를 닫음 */
+    public void useSelectedConsumable() {
+        if (!acceptsInput() || !itemSubMenuActive) {
+            return;
+        }
+        if (battleManager.executeUseConsumable(selectedConsumableIndex)) {
+            itemSubMenuActive = false;
+        }
+    }
+
+    /** 소비 아이템 서브메뉴 닫기 (행동 메뉴로 복귀) */
+    public void closeItemSubMenu() {
+        itemSubMenuActive = false;
     }
 
     /**
@@ -435,5 +422,9 @@ public class BattleScreen {
 
     public int getSelectedActionIndex() {
         return selectedActionIndex;
+    }
+
+    public BattleManager getBattleManager() {
+        return battleManager;
     }
 }

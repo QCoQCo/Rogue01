@@ -1,88 +1,84 @@
 package com.rogue01.game;
 
-/**
- * 게임 루프를 관리하는 클래스 - 정확한 FPS 제한과 성능 모니터링 제공
- */
-public class GameLoop implements Runnable {
-    private static final int TARGET_FPS = 60;
-    private static final long TARGET_TIME = 1000000000 / TARGET_FPS;
-    private static final int MAX_FRAME_SKIPS = 5;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import javax.swing.SwingUtilities;
 
-    private Thread gameThread;
-    private boolean running;
+/**
+ * 게임 루프 - 매 프레임 update/render를 EDT(Event Dispatch Thread)에서 실행
+ *
+ * 키 입력·마우스 클릭·화면 그리기도 모두 EDT에서 실행되므로, 게임 상태를 한 스레드에서만
+ * 읽고 쓰게 되어 별도 동기화 없이 경쟁 상태가 생기지 않음 (턴제라 프레임당 작업량이 작음)
+ *
+ * 프레임 간격은 고정 주기 스케줄러(pacer 스레드)가 맞추고, pacer는 EDT에 프레임 실행만 요청함
+ * (javax.swing.Timer는 틱마다 지연이 누적되어 60fps 목표에서 52fps 정도로 떨어짐)
+ */
+public class GameLoop {
+    private static final int TARGET_FPS = 60;
+    private static final long FRAME_NANOS = 1_000_000_000L / TARGET_FPS;
+
+    private ScheduledExecutorService pacer;
+    /** EDT에 요청한 프레임이 아직 실행 전이면 true (EDT가 바쁠 때 프레임 요청이 쌓이지 않도록) */
+    private final AtomicBoolean framePending = new AtomicBoolean();
+    private volatile boolean running;
     private Game game;
 
-    // 성능 모니터링을 위한 변수들
+    // 성능 모니터링 (1초 단위로 집계 후 초기화)
     private long frameCount = 0;
     private long lastFpsTime = 0;
     private int currentFps = 0;
     private long totalFrameTime = 0;
+    private double lastAverageFrameTimeMs = 0.0;
     private long minFrameTime = Long.MAX_VALUE;
     private long maxFrameTime = 0;
 
+    /**
+     * 루프 시작 (EDT에서 호출해야 함)
+     */
     public void start(Game game) {
         this.game = game;
+        this.lastFpsTime = System.currentTimeMillis();
         this.running = true;
-        this.gameThread = new Thread(this, "GameLoop");
-        this.gameThread.start();
+        this.pacer = Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread thread = new Thread(r, "GameLoop-Pacer");
+            thread.setDaemon(true);
+            return thread;
+        });
+        pacer.scheduleAtFixedRate(this::requestFrame, 0, FRAME_NANOS, TimeUnit.NANOSECONDS);
     }
 
     public void stop() {
-        this.running = false;
-        try {
-            if (gameThread != null && gameThread.isAlive()) {
-                gameThread.join(1000); // 1초 대기
-                if (gameThread.isAlive()) {
-                    gameThread.interrupt(); // 강제 종료
-                }
-            }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
+        running = false;
+        if (pacer != null) {
+            pacer.shutdownNow();
         }
     }
 
-    @Override
-    public void run() {
-        long lastTime = System.nanoTime();
-        long unprocessedTime = 0;
-        int frameSkips = 0;
-
-        while (running) {
-            long currentTime = System.nanoTime();
-            long elapsedTime = currentTime - lastTime;
-            lastTime = currentTime;
-
-            unprocessedTime += elapsedTime;
-
-            // 프레임 스킵 방지
-            while (unprocessedTime >= TARGET_TIME && frameSkips < MAX_FRAME_SKIPS) {
-                // 게임 업데이트
-                game.update();
-                unprocessedTime -= TARGET_TIME;
-                frameSkips++;
-            }
-
-            // 화면 렌더링 (항상 실행)
-            long renderStartTime = System.nanoTime();
-            game.render();
-            long renderTime = System.nanoTime() - renderStartTime;
-
-            // 성능 통계 업데이트
-            updatePerformanceStats(renderTime);
-
-            // FPS 제한
-            long sleepTime = TARGET_TIME - (System.nanoTime() - currentTime);
-            if (sleepTime > 0) {
+    /** pacer 스레드: 게임 상태에는 손대지 않고 EDT에 프레임 실행만 요청 */
+    private void requestFrame() {
+        if (running && framePending.compareAndSet(false, true)) {
+            SwingUtilities.invokeLater(() -> {
                 try {
-                    Thread.sleep(sleepTime / 1000000, (int) (sleepTime % 1000000));
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    break;
+                    if (running) {
+                        tick();
+                    }
+                } finally {
+                    framePending.set(false);
                 }
-            }
-
-            frameSkips = 0; // 프레임 스킵 카운터 리셋
+            });
         }
+    }
+
+    /**
+     * 한 프레임: 게임 갱신 후 다시 그리기 요청 (항상 EDT)
+     */
+    private void tick() {
+        long frameStart = System.nanoTime();
+        game.update();
+        game.render();
+        updatePerformanceStats(System.nanoTime() - frameStart);
     }
 
     /**
@@ -101,29 +97,31 @@ public class GameLoop implements Runnable {
         long currentTime = System.currentTimeMillis();
         if (currentTime - lastFpsTime >= 1000) {
             currentFps = (int) frameCount;
+            lastAverageFrameTimeMs = (double) totalFrameTime / frameCount / 1000000;
             frameCount = 0;
+            totalFrameTime = 0;
             lastFpsTime = currentTime;
 
             // 성능 정보 출력 (디버그용)
             if (currentFps < TARGET_FPS * 0.9) {
                 System.out.printf("Performance warning: FPS = %d, Avg frame time = %.2fms%n",
-                        currentFps, (double) totalFrameTime / 1000000);
+                        currentFps, lastAverageFrameTimeMs);
             }
         }
     }
 
     /**
-     * 현재 FPS 반환
+     * 현재 FPS 반환 (직전 1초 기준)
      */
     public int getCurrentFps() {
         return currentFps;
     }
 
     /**
-     * 평균 프레임 시간 반환 (밀리초)
+     * 평균 프레임 시간 반환 (밀리초, 직전 1초 기준)
      */
     public double getAverageFrameTime() {
-        return frameCount > 0 ? (double) totalFrameTime / frameCount / 1000000 : 0.0;
+        return lastAverageFrameTimeMs;
     }
 
     /**
