@@ -159,6 +159,17 @@ class GameFlowTest {
     }
 
     @Test
+    void newGameStartsWithSwordAndArmorEquippedAndThreePotions() {
+        game.startNewGame();
+        var inventory = game.getPlayer().getInventory();
+
+        assertNotNull(inventory.getEquippedItem(com.rogue01.item.ItemType.WEAPON_MAIN), "sword equipped");
+        assertNotNull(inventory.getEquippedItem(com.rogue01.item.ItemType.ARMOR), "armor equipped");
+        assertEquals(3, inventory.getConsumables().size(), "three potions");
+        assertEquals(3, inventory.getSize(), "only potions left in the bag");
+    }
+
+    @Test
     void restartAfterLateChapterResetsToFirstFloorStrength() throws Exception {
         game.startNewGame();
         goToFloor(3, 3);

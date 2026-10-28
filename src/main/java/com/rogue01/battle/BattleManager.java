@@ -234,7 +234,8 @@ public class BattleManager {
      * 데미지 계산
      */
     private int calculateDamage(int attack, int defense, boolean isCritical) {
-        int baseDamage = Math.max(1, attack - defense);
+        // 비율 공식: 방어력이 높을수록 피해가 줄지만 1로 수렴하지 않음 (GameBalance.baseDamage)
+        int baseDamage = GameBalance.baseDamage(attack, defense);
 
         if (isCritical) {
             baseDamage = (int) (baseDamage * 1.5);

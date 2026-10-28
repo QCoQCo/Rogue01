@@ -13,9 +13,11 @@ public class ItemFactory {
     }
 
     /**
-     * 적 처치 시 랜덤 아이템 드롭 (난이도 반영, 장비는 레벨 1~9 가중치 드롭)
+     * 적 처치 시 랜덤 아이템 드롭 (난이도 반영, 장비 레벨은 현재 층 번호 ±1)
+     *
+     * @param chapter, level 현재 챕터/층 (드롭 장비 레벨 결정)
      */
-    public static Item createRandomDrop(GameBalance.Difficulty difficulty) {
+    public static Item createRandomDrop(GameBalance.Difficulty difficulty, int chapter, int level) {
         double dropChance = GameBalance.DROP_CHANCE_BASE * GameBalance.getDropChanceMultiplier(difficulty);
         if (RANDOM.nextDouble() > dropChance) {
             return null;
@@ -25,17 +27,17 @@ public class ItemFactory {
             return createRandomConsumable();
         }
 
-        int level = GameBalance.rollItemLevel(RANDOM);
+        int itemLevel = GameBalance.rollItemLevel(RANDOM, chapter, level);
         int roll = RANDOM.nextInt(7);
         return switch (roll) {
-            case 0 -> createSword(level);
-            case 1 -> createDagger(level);
-            case 2 -> createLeatherArmor(level);
-            case 3 -> createIronHelmet(level);
-            case 4 -> createLeatherBoots(level);
-            case 5 -> createRing(level);
-            case 6 -> createNecklace(level);
-            default -> createSword(level);
+            case 0 -> createSword(itemLevel);
+            case 1 -> createDagger(itemLevel);
+            case 2 -> createLeatherArmor(itemLevel);
+            case 3 -> createIronHelmet(itemLevel);
+            case 4 -> createLeatherBoots(itemLevel);
+            case 5 -> createRing(itemLevel);
+            case 6 -> createNecklace(itemLevel);
+            default -> createSword(itemLevel);
         };
     }
 

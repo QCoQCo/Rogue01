@@ -359,7 +359,7 @@ public class Game {
      * 적 처치 시 아이템 드롭 (적이 있던 위치에)
      */
     private void dropItemFromEnemy(Enemy enemy, int dropX, int dropY) {
-        Item droppedItem = ItemFactory.createRandomDrop(difficulty);
+        Item droppedItem = ItemFactory.createRandomDrop(difficulty, currentChapter, currentLevel);
         if (droppedItem != null) {
             mapItems.add(new MapItem(dropX, dropY, droppedItem));
         }
@@ -480,7 +480,7 @@ public class Game {
         // 플레이어 초기화
         player.resetLevelAndStats();
         player.getInventory().clear();
-        addTestItems();
+        addStartingItems();
 
         // 게임 통계 초기화 (메뉴에 머문 시간은 생존 시간에서 제외)
         killCount = 0;
@@ -580,8 +580,10 @@ public class Game {
                 continue;
             }
 
+            // 난이도 배율은 확률적 반올림 (정수 버림이면 기본 1마리 방에서 배율 효과가 사라짐)
             int baseCount = Math.max(1, room.getArea() / GameBalance.ROOM_ENEMY_DIVISOR);
-            int enemyCount = Math.max(1, (int) (baseCount * GameBalance.getSpawnDensityMultiplier(difficulty)));
+            int enemyCount = GameBalance.roundStochastic(
+                    baseCount * GameBalance.getSpawnDensityMultiplier(difficulty), randomUtils.getRandom());
 
             for (int i = 0; i < enemyCount; i++) {
                 for (int attempt = 0; attempt < 10; attempt++) {
@@ -607,7 +609,8 @@ public class Game {
      */
     private void spawnEnemiesRandomly() {
         int baseCount = (map.getWidth() * map.getHeight()) / GameBalance.RANDOM_SPAWN_DIVISOR;
-        int enemyCount = Math.max(1, (int) (baseCount * GameBalance.getSpawnDensityMultiplier(difficulty)));
+        int enemyCount = Math.max(1, GameBalance.roundStochastic(
+                baseCount * GameBalance.getSpawnDensityMultiplier(difficulty), randomUtils.getRandom()));
 
         for (int i = 0; i < enemyCount; i++) {
             int attempts = 0;
@@ -742,18 +745,19 @@ public class Game {
     }
 
     /**
-     * 테스트 아이템들을 플레이어 인벤토리에 추가
+     * 시작 장비: Lv1 철검·가죽 갑옷(착용 상태) + 체력 포션 2개 + 상급 체력 포션 1개
+     * 나머지 장비 슬롯은 드롭으로 채움 (GameBalance 수치는 이 구성을 기준으로 조정)
      */
-    private void addTestItems() {
-        player.getInventory().addItem(ItemFactory.createSword());
-        player.getInventory().addItem(ItemFactory.createDagger());
-        player.getInventory().addItem(ItemFactory.createLeatherArmor());
-        player.getInventory().addItem(ItemFactory.createIronHelmet());
-        player.getInventory().addItem(ItemFactory.createLeatherBoots());
-        player.getInventory().addItem(ItemFactory.createRing());
-        player.getInventory().addItem(ItemFactory.createNecklace());
-        player.getInventory().addItem(ItemFactory.createHealthPotion());
-        player.getInventory().addItem(ItemFactory.createHealthPotion());
-        player.getInventory().addItem(ItemFactory.createGreaterHealthPotion());
+    private void addStartingItems() {
+        var inventory = player.getInventory();
+        Item sword = ItemFactory.createSword();
+        Item armor = ItemFactory.createLeatherArmor();
+        inventory.addItem(sword);
+        inventory.addItem(armor);
+        inventory.equipItem(sword);
+        inventory.equipItem(armor);
+        inventory.addItem(ItemFactory.createHealthPotion());
+        inventory.addItem(ItemFactory.createHealthPotion());
+        inventory.addItem(ItemFactory.createGreaterHealthPotion());
     }
 }
