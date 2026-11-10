@@ -159,27 +159,6 @@ public class Enemy extends Entity {
         return true;
     }
 
-    /**
-     * 플레이어를 공격
-     */
-    public void attack(Player player) {
-        if (isDead()) {
-            return;
-        }
-
-        int damage = Math.max(1, attack - player.getDefense());
-        player.takeDamage(damage);
-    }
-
-    /**
-     * 플레이어와 인접해 있는지 확인
-     */
-    public boolean isAdjacentTo(Player player) {
-        int dx = Math.abs(x - player.getX());
-        int dy = Math.abs(y - player.getY());
-        return (dx == 1 && dy == 0) || (dx == 0 && dy == 1);
-    }
-
     // Getters
     public EnemyType getEnemyType() {
         return enemyType;

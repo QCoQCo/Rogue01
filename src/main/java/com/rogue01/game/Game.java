@@ -339,23 +339,6 @@ public class Game {
     }
 
     /**
-     * 적과의 충돌 체크 (플레이어가 적 타일로 이동한 경우 - movePlayer에서 처리)
-     */
-    private void checkEnemyCollision() {
-        if (gameState == GameState.BATTLE)
-            return;
-
-        for (Enemy enemy : enemies) {
-            if (enemy.isDead())
-                continue;
-            if (player.getX() == enemy.getX() && player.getY() == enemy.getY()) {
-                startBattle(enemy, enemy.getX(), enemy.getY());
-                break;
-            }
-        }
-    }
-
-    /**
      * 적 처치 시 아이템 드롭 (적이 있던 위치에)
      */
     private void dropItemFromEnemy(Enemy enemy, int dropX, int dropY) {
@@ -667,6 +650,11 @@ public class Game {
 
     public GameWindow getGameWindow() {
         return gameWindow;
+    }
+
+    /** 직전 1초 동안의 실제 FPS (HUD 표시용, 루프 시작 전에는 0) */
+    public int getCurrentFps() {
+        return gameLoop.getCurrentFps();
     }
 
     public InputManager getInputManager() {

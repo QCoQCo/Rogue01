@@ -15,10 +15,7 @@ public class HealthPotion extends Consumable {
 
     @Override
     public void use(Player player) {
-        int before = player.getHealth();
-        player.heal(healAmount);
-        int actualHeal = player.getHealth() - before;
-        // 실제 회복량은 최대 HP를 넘지 않음 (heal 내부에서 처리됨)
+        player.heal(healAmount); // 최대 HP를 넘지 않음 (Entity.heal)
     }
 
     public int getHealAmount() {

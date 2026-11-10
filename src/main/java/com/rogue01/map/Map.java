@@ -71,29 +71,12 @@ public class Map {
     }
 
     /**
-     * 새로운 생성기로 맵 재생성
-     */
-    public void regenerate(MapGeneratorType generatorType) {
-        this.generator = createGenerator(generatorType);
-        generateMap();
-    }
-
-    /**
      * 챕터/레벨 지정하여 맵 재생성 (계단·보스방 배치)
      */
     public void regenerate(MapGeneratorType generatorType, int chapter, int level) {
         this.generator = createGenerator(generatorType);
         generator.setChapterLevel(chapter, level);
         generateMap();
-    }
-
-    /**
-     * 특정 시드로 맵 재생성
-     */
-    public void regenerate(long seed) {
-        generator.setSeed(seed);
-        this.tiles = generator.generate(width, height);
-        this.generationInfo = generator.getGenerationInfo();
     }
 
     /**

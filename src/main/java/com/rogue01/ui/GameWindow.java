@@ -495,9 +495,10 @@ public class GameWindow extends JFrame {
                 g2d.fillRect(0, getHeight() - 35, getWidth(), 35);
                 g2d.setColor(Color.WHITE);
                 g2d.setFont(new Font("Monospaced", Font.PLAIN, 14));
-                g2d.drawString("ESC: Pause | Q: Quit | R: Restart", 20, getHeight() - 15);
+                // 탐험 중 실제로 동작하는 키만 안내 (Q 종료는 일시정지 화면, R 재시작은 게임 오버 화면에서)
+                g2d.drawString("ESC: Pause (Q: Quit) | Space: Wait", 20, getHeight() - 15);
                 g2d.drawString("Map Size: " + map.getWidth() + "x" + map.getHeight(), 400, getHeight() - 15);
-                g2d.drawString("FPS: 60", 600, getHeight() - 15);// 랜더링 속도 계산
+                g2d.drawString("FPS: " + currentGame.getCurrentFps(), 600, getHeight() - 15);
 
                 // 보스방 문 프롬프트 오버레이
                 if (currentGame.getGameState() == com.rogue01.game.GameState.BOSS_DOOR_PROMPT) {
